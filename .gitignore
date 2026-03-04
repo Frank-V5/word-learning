@@ -1,0 +1,14 @@
+node_modules/
+**/node_modules/
+package-lock.json
+**/package-lock.json
+dist/
+*.db
+*.sqlite
+backend/data/
+*.log
+videos/*.mp4
+*.mp4
+.env
+.env.local
+.DS_Store

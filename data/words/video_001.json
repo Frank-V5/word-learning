@@ -1,0 +1,30 @@
+{
+  "videoId": "video_001",
+  "title": "P/R 单词讲解",
+  "videoUrl": "/videos/pr_words.mp4",
+  "description": "P和R开头单词讲解视频 (62分钟完整版)",
+  "words": [
+    {"word": "purse", "phonetic": "/pɜːrs/", "meaning": "钱包；皮包", "pos": "n.", "startTime": 0, "endTime": 150},
+    {"word": "push", "phonetic": "/pʊʃ/", "meaning": "推；挤", "pos": "v.", "startTime": 150, "endTime": 330},
+    {"word": "queen", "phonetic": "/kwiːn/", "meaning": "女王；王后", "pos": "n.", "startTime": 330, "endTime": 450},
+    {"word": "quick", "phonetic": "/kwɪk/", "meaning": "快的；迅速的", "pos": "adj.", "startTime": 450, "endTime": 480},
+    {"word": "rabbit", "phonetic": "/ˈræbɪt/", "meaning": "兔子", "pos": "n.", "startTime": 480, "endTime": 780},
+    {"word": "rainy", "phonetic": "/ˈreɪni/", "meaning": "下雨的；多雨的", "pos": "adj.", "startTime": 780, "endTime": 900},
+    {"word": "raise", "phonetic": "/reɪz/", "meaning": "举起；筹集", "pos": "v.", "startTime": 900, "endTime": 1080},
+    {"word": "rapid", "phonetic": "/ˈræpɪd/", "meaning": "快的；迅速的", "pos": "adj.", "startTime": 1080, "endTime": 1110},
+    {"word": "rather", "phonetic": "/ˈrɑːðər/", "meaning": "相当；稍微", "pos": "adv.", "startTime": 1110, "endTime": 1200},
+    {"word": "hundred", "phonetic": "/ˈhʌndrəd/", "meaning": "一百；许多", "pos": "num.", "startTime": 1200, "endTime": 1350},
+    {"word": "ready", "phonetic": "/ˈredi/", "meaning": "准备好的；乐意的", "pos": "adj.", "startTime": 1350, "endTime": 1380},
+    {"word": "chant", "phonetic": "/tʃɑːnt/", "meaning": "吟唱；圣歌", "pos": "v./n.", "startTime": 1380, "endTime": 1440},
+    {"word": "recite", "phonetic": "/rɪˈsaɪt/", "meaning": "背诵；朗诵", "pos": "v.", "startTime": 1440, "endTime": 1530},
+    {"word": "refuse", "phonetic": "/rɪˈfjuːz/", "meaning": "拒绝", "pos": "v.", "startTime": 1530, "endTime": 1740},
+    {"word": "regard", "phonetic": "/rɪˈɡɑːrd/", "meaning": "看做；认为", "pos": "v.", "startTime": 1740, "endTime": 2190},
+    {"word": "regret", "phonetic": "/rɪˈɡret/", "meaning": "遗憾；后悔", "pos": "v.", "startTime": 2190, "endTime": 2250},
+    {"word": "relation", "phonetic": "/rɪˈleɪʃn/", "meaning": "联系；关系", "pos": "n.", "startTime": 2250, "endTime": 2640},
+    {"word": "lax", "phonetic": "/læks/", "meaning": "松弛的", "pos": "adj.", "startTime": 2640, "endTime": 2790},
+    {"word": "relax", "phonetic": "/rɪˈlæks/", "meaning": "放松；休息", "pos": "v.", "startTime": 2790, "endTime": 2820},
+    {"word": "remain", "phonetic": "/rɪˈmeɪn/", "meaning": "保持；剩余", "pos": "v.", "startTime": 2820, "endTime": 2940},
+    {"word": "memory", "phonetic": "/ˈmeməri/", "meaning": "记忆；记忆力", "pos": "n.", "startTime": 2940, "endTime": 3750},
+    {"word": "repair", "phonetic": "/rɪˈper/", "meaning": "修理；修补", "pos": "v.", "startTime": 3750, "endTime": 3755}
+  ]
+}
