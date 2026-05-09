@@ -1,20 +1,20 @@
 <template>
-  <div class="review-page">
+  <div class="troublesome-page">
     <div class="header">
-      <h2>🎯 错词本 <span class="total-count" v-if="!loading && totalCount > 0">(共 {{ totalCount }} 个)</span></h2>
-      <p class="subtitle">当前需要复习的单词 (点击🎬可在页面内观看视频)</p>
+      <h2>📝 易错单词表 <span class="total-count" v-if="!loading && totalCount > 0">(共 {{ totalCount }} 个)</span></h2>
+      <p class="subtitle">曾经出错的单词记录 (点击🎬可在页面内观看视频)</p>
     </div>
     
     <div v-if="loading" class="loading">加载中...</div>
     
-    <div v-else-if="groupedWords.length === 0" class="empty-state">
+    <div v-else-if="groupedWords.length === 0" class="empty">
       <div class="emoji">🎉</div>
       <h3>太棒了！</h3>
-      <p>没有需要复习的单词</p>
-      <button class="btn btn-primary" @click="goToVideos">去学习新单词</button>
+      <p>暂无易错单词记录</p>
     </div>
     
     <div v-else>
+      
       <!-- 按视频分组展示 -->
       <div v-for="group in groupedWords" :key="group.videoId" class="video-section">
         <div class="video-header" @click="toggleVideo(group.videoId)">
@@ -25,10 +25,10 @@
         
         <div v-show="expandedVideos.includes(group.videoId)" class="word-grid">
           <div 
-            v-for="word in group.words" 
-            :key="word.id"
+            v-for="(word, index) in group.words" 
+            :key="index"
             class="word-card"
-            :class="{ flipped: flippedCards.includes(word.id), playing: isWordPlaying(word) }"
+            :class="{ flipped: flippedCards.includes(word.word), playing: isWordPlaying(word) }"
             @click="toggleCard(word)"
           >
             <div class="card-front">
@@ -38,6 +38,7 @@
                 <button class="btn-speak-small" @click.stop="speak(word.word)" title="发音">🔊</button>
                 <button class="btn-video-small" @click.stop="openVideoPlayer(group, word)" title="观看视频">🎬</button>
               </div>
+              <div class="wrong-badge" v-if="word.wrongCount > 1">x{{ word.wrongCount }}</div>
             </div>
             <div class="card-back">
               <div class="meaning">
@@ -48,8 +49,8 @@
                 <button class="btn-speak" @click.stop="speak(word.word)" title="发音">🔊</button>
                 <button class="btn-video" @click.stop="openVideoPlayer(group, word)" title="观看视频">🎬</button>
               </div>
-              <div class="status-btns">
-                <button class="btn-known" @click.stop="markKnown(word)">✅ 认识</button>
+              <div class="card-actions-bottom">
+                <button class="btn-unknown" @click.stop="markAsForgot(word)" title="不会，加入错词本">❌ 不会</button>
               </div>
             </div>
           </div>
@@ -78,7 +79,7 @@
 import VideoPlayerOverlay from '../components/VideoPlayerOverlay.vue'
 
 export default {
-  name: 'Review',
+  name: 'Troublesome',
   components: {
     VideoPlayerOverlay
   },
@@ -102,21 +103,26 @@ export default {
     }
   },
   mounted() {
-    this.fetchWrongWords()
+    this.fetchWords()
   },
   methods: {
-    async fetchWrongWords() {
+    async fetchWords() {
       try {
-        const res = await fetch(`/api/wrong-words?userId=${this.userId}&grouped=true`)
+        const res = await fetch(`/api/troublesome-words?userId=${this.userId}&grouped=true`)
         const data = await res.json()
         
         if (data.success) {
           this.groupedWords = data.data
           this.expandedVideos = data.data.map(g => g.videoId)
-          this.totalCount = data.data.reduce((sum, g) => sum + g.words.length, 0)
+        }
+        
+        const countRes = await fetch(`/api/troublesome-words/count?userId=${this.userId}`)
+        const countData = await countRes.json()
+        if (countData.success) {
+          this.totalCount = countData.data.count
         }
       } catch (e) {
-        console.error('获取错词失败', e)
+        console.error('获取易错单词失败', e)
       } finally {
         this.loading = false
       }
@@ -132,11 +138,11 @@ export default {
     },
     
     toggleCard(word) {
-      const index = this.flippedCards.indexOf(word.id)
+      const index = this.flippedCards.indexOf(word.word)
       if (index > -1) {
         this.flippedCards.splice(index, 1)
       } else {
-        this.flippedCards.push(word.id)
+        this.flippedCards.push(word.word)
       }
     },
     
@@ -167,7 +173,7 @@ export default {
       
       // 找到当前单词的索引
       this.player.currentIndex = this.player.allWords.findIndex(
-        w => w.id === word.id
+        w => w.word === word.word && w.videoId === group.videoId
       )
       
       // 设置当前视频和单词
@@ -222,51 +228,42 @@ export default {
     isWordPlaying(word) {
       return this.player.visible && 
              this.player.currentWord && 
-             this.player.currentWord.id === word.id
-    },
-    
-    async markKnown(word) {
-      try {
-        const res = await fetch('/api/progress', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: this.userId,
-            wordId: word.id,
-            status: 'known'
-          })
-        })
-        const data = await res.json()
-        if (data.success) {
-          for (const group of this.groupedWords) {
-            const index = group.words.findIndex(w => w.id === word.id)
-            if (index > -1) {
-              group.words.splice(index, 1)
-              break
-            }
-          }
-          this.groupedWords = this.groupedWords.filter(g => g.words.length > 0)
-          this.totalCount = this.groupedWords.reduce((sum, g) => sum + g.words.length, 0)
-          this.$emit('updateWrongCount', this.totalCount)
-        }
-      } catch (e) {
-        console.error('更新状态失败', e)
-      }
+             this.player.currentWord.word === word.word
     },
     
     goBack() {
       this.$router.push({ name: 'Videos' })
     },
     
-    goToVideos() {
-      this.$router.push({ name: 'Videos' })
+    // 标记为"不会"，加入错词本
+    async markAsForgot(word) {
+      try {
+        const res = await fetch('/api/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: this.userId,
+            wordId: word.wordId,
+            status: 'unknown'
+          })
+        })
+        const data = await res.json()
+        if (data.success) {
+          // 显示提示
+          alert(`"${word.word}" 已加入错词本`)
+          // 通知父组件更新错词本数量
+          this.$emit('updateWrongCount')
+        }
+      } catch (e) {
+        console.error('标记失败:', e)
+      }
     }
   }
 }
 </script>
 
 <style scoped>
-.review-page {
+.troublesome-page {
   padding: 24px;
   min-height: calc(100vh - 70px);
 }
@@ -283,7 +280,7 @@ export default {
 
 .total-count {
   font-size: 16px;
-  color: #C62828;
+  color: #E65100;
   font-weight: normal;
 }
 
@@ -345,13 +342,13 @@ export default {
   background: white;
   border-radius: 12px;
   padding: 16px;
-  padding-bottom: 70px; /* 为底部按钮留出空间 */
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: all 0.2s;
-  min-height: 160px;
-  border: 2px solid #F44336;
+  min-width: 180px;
+  min-height: 120px;
   position: relative;
+  border: 2px solid #FF9800;
 }
 
 .word-card:hover {
@@ -360,12 +357,13 @@ export default {
 }
 
 .word-card.flipped {
+  background: #FFF8E1;
   border-color: #4CAF50;
 }
 
 .word-card.playing {
-  border-color: #FF9800;
-  box-shadow: 0 0 20px rgba(255, 152, 0, 0.5);
+  border-color: #2196F3;
+  box-shadow: 0 0 20px rgba(33, 150, 243, 0.5);
 }
 
 .card-front {
@@ -416,8 +414,25 @@ export default {
   border-color: #FF9800;
 }
 
+.wrong-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #F44336;
+  color: white;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
 .card-back {
+  display: none;
   text-align: center;
+  width: 100%;
+}
+
+.word-card.flipped .card-back {
+  display: block;
 }
 
 .word-card:not(.flipped) .card-back {
@@ -425,12 +440,12 @@ export default {
 }
 
 .meaning {
-  font-size: 15px;
-  margin-bottom: 8px;
-  line-height: 1.4;
-  max-height: 70px;
+  font-size: 14px;
+  line-height: 1.3;
+  max-height: 40px;
   overflow-y: auto;
   word-break: break-word;
+  margin-bottom: 8px;
 }
 
 .meaning .pos {
@@ -439,22 +454,38 @@ export default {
 }
 
 .card-actions {
-  position: absolute;
-  bottom: 45px;
-  left: 0;
-  right: 0;
   display: flex;
   justify-content: center;
-  gap: 12px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .btn-speak, .btn-video {
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: 1px solid #ddd;
   background: white;
-  border-radius: 20px;
+  border-radius: 16px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
+}
+
+.card-actions-bottom {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-unknown {
+  padding: 6px 20px;
+  background: #F44336;
+  color: white;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-unknown:hover {
+  background: #d32f2f;
 }
 
 .btn-speak:hover {
@@ -467,47 +498,14 @@ export default {
   border-color: #FF9800;
 }
 
-.status-btns {
-  position: absolute;
-  bottom: 10px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-}
-
-.btn-known {
-  padding: 10px 20px;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.btn-known:hover {
-  background: #43A047;
-}
-
-.loading, .empty-state {
+.loading, .empty {
   text-align: center;
   padding: 64px 24px;
 }
 
-.empty-state .emoji {
+.empty .emoji {
   font-size: 80px;
   margin-bottom: 24px;
-}
-
-.empty-state h3 {
-  font-size: 24px;
-  margin-bottom: 8px;
-}
-
-.empty-state p {
-  color: #666;
-  margin-bottom: 16px;
 }
 
 .btn-back {

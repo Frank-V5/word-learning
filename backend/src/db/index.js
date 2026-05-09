@@ -159,6 +159,115 @@ export const wordOps = {
   }
 };
 
+// 易错单词表相关操作
+export const troublesomeOps = {
+  // 添加易错单词 (如果已存在则增加计数)
+  // wordId: 单词ID，用于精确关联到特定视频
+  upsert(userId, wordId, word, phonetic, meaning, pos) {
+    const db = getDb();
+    
+    // 检查是否已存在（按 user_id + word_id 唯一）
+    const existing = db.prepare('SELECT * FROM troublesome_words WHERE user_id = ? AND word_id = ?').get(userId, wordId);
+    
+    if (existing) {
+      // 已存在，增加计数
+      const stmt = db.prepare(`
+        UPDATE troublesome_words 
+        SET wrong_count = wrong_count + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ? AND word_id = ?
+      `);
+      stmt.run(userId, wordId);
+      return db.prepare('SELECT * FROM troublesome_words WHERE user_id = ? AND word_id = ?').get(userId, wordId);
+    } else {
+      // 不存在，插入新记录（同时存储 word_id 和 word 文本）
+      const id = generateId('tw_');
+      const stmt = db.prepare(`
+        INSERT INTO troublesome_words (id, user_id, word_id, word, phonetic, meaning, pos, first_wrong_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `);
+      stmt.run(id, userId, wordId, word, phonetic, meaning, pos);
+      return db.prepare('SELECT * FROM troublesome_words WHERE id = ?').get(id);
+    }
+  },
+
+  // 获取易错单词列表
+  getAll(userId, limit = 100, offset = 0) {
+    const db = getDb();
+    const stmt = db.prepare(`
+      SELECT * FROM troublesome_words 
+      WHERE user_id = ? 
+      ORDER BY wrong_count DESC, first_wrong_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    return stmt.all(userId, limit, offset);
+  },
+
+  // 获取易错单词总数
+  getCount(userId) {
+    const db = getDb();
+    const stmt = db.prepare('SELECT COUNT(*) as count FROM troublesome_words WHERE user_id = ?');
+    return stmt.get(userId).count;
+  },
+
+  // 按视频分组获取易错单词 (用于网格展示)
+  getGroupedByVideo(userId) {
+    const db = getDb();
+    // 使用 word_id 精确关联，避免跨视频重复单词的问题
+    const stmt = db.prepare(`
+      SELECT 
+        v.id as video_id,
+        v.title as video_title,
+        v.video_url,
+        tw.word,
+        tw.phonetic,
+        tw.meaning,
+        tw.pos,
+        tw.wrong_count,
+        tw.first_wrong_at,
+        tw.updated_at,
+        w.start_time,
+        w.end_time,
+        w.id as word_id
+      FROM troublesome_words tw
+      JOIN words w ON w.id = tw.word_id
+      JOIN videos v ON w.video_id = v.id
+      WHERE tw.user_id = ?
+      ORDER BY tw.updated_at DESC, tw.wrong_count DESC
+    `);
+    const rows = stmt.all(userId);
+
+    // 按视频分组，保持时间逆序
+    const grouped = {};
+    const videoOrder = [];
+    
+    for (const row of rows) {
+      if (!grouped[row.video_id]) {
+        grouped[row.video_id] = {
+          videoId: row.video_id,
+          videoTitle: row.video_title,
+          videoUrl: row.video_url,
+          words: [],
+          latestMarkedAt: row.updated_at
+        };
+        videoOrder.push(row.video_id);
+      }
+      grouped[row.video_id].words.push({
+        wordId: row.word_id,
+        word: row.word,
+        phonetic: row.phonetic,
+        meaning: row.meaning,
+        pos: row.pos,
+        wrongCount: row.wrong_count,
+        firstWrongAt: row.first_wrong_at,
+        startTime: row.start_time,
+        endTime: row.end_time
+      });
+    }
+    
+    return videoOrder.map(vid => grouped[vid]);
+  }
+};
+
 // 学习进度相关操作
 export const progressOps = {
   getByVideoId(userId, videoId) {
@@ -198,6 +307,14 @@ export const progressOps = {
       stmt.run(userId, wordId, status);
     }
     
+    // 如果标记为 unknown，同时写入易错单词表
+    if (status === 'unknown') {
+      const word = wordOps.getById(wordId);
+      if (word) {
+        troublesomeOps.upsert(userId, wordId, word.word, word.phonetic, word.meaning, word.pos);
+      }
+    }
+    
     return this.getByWordId(userId, wordId);
   },
 
@@ -227,6 +344,54 @@ export const progressOps = {
     
     const stmt = db.prepare(sql);
     return stmt.all(...params);
+  },
+
+  // 获取按视频分组的错词
+  getWrongWordsGrouped(userId) {
+    const db = getDb();
+    const sql = `
+      SELECT p.word_id as id, w.word, w.phonetic, w.meaning, w.pos, 
+             w.start_time as startTime, w.end_time as endTime, 
+             w.video_id as videoId, v.title as videoTitle, v.video_url as videoUrl,
+             p.updated_at as markedAt
+      FROM progress p
+      JOIN words w ON p.word_id = w.id
+      JOIN videos v ON w.video_id = v.id
+      WHERE p.user_id = ? AND p.status = 'unknown'
+      ORDER BY p.updated_at DESC
+    `;
+    
+    const rows = db.prepare(sql).all(userId);
+    
+    // 按视频分组，保持时间逆序
+    const grouped = {};
+    const videoOrder = []; // 记录视频出现顺序
+    
+    for (const row of rows) {
+      if (!grouped[row.videoId]) {
+        grouped[row.videoId] = {
+          videoId: row.videoId,
+          videoTitle: row.videoTitle,
+          videoUrl: row.videoUrl,
+          words: [],
+          latestMarkedAt: row.markedAt
+        };
+        videoOrder.push(row.videoId);
+      }
+      grouped[row.videoId].words.push({
+        id: row.id,
+        word: row.word,
+        phonetic: row.phonetic,
+        meaning: row.meaning,
+        pos: row.pos,
+        startTime: row.startTime,
+        endTime: row.endTime,
+        markedAt: row.markedAt
+      });
+    }
+    
+    // 按视频最新标记时间排序
+    return videoOrder.map(vid => grouped[vid]);
   },
 
   getStats(userId, videoId = null) {

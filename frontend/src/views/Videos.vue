@@ -2,15 +2,38 @@
   <div class="videos-page">
     <h2>选择要学习的视频</h2>
     
+    <!-- 分类标签 -->
+    <div class="category-tabs">
+      <button 
+        :class="{ active: category === 'junior' }" 
+        @click="switchCategory('junior')"
+      >
+        初中
+      </button>
+      <button 
+        :class="{ active: category === 'senior' }" 
+        @click="switchCategory('senior')"
+      >
+        高中
+      </button>
+    </div>
+    
+    <!-- 分类统计 -->
+    <div class="category-stats">
+      <span>📊 总单词: {{ categoryStats.total }}</span>
+      <span>✅ 已学: {{ categoryStats.learned }}</span>
+      <span>🔴 不会: {{ categoryStats.unknown }}</span>
+    </div>
+    
     <div v-if="loading" class="loading">加载中...</div>
     
-    <div v-else-if="videos.length === 0" class="empty">
+    <div v-else-if="filteredVideos.length === 0" class="empty">
       暂无视频
     </div>
     
     <div v-else class="video-list">
       <div 
-        v-for="video in videos" 
+        v-for="video in filteredVideos" 
         :key="video.id" 
         class="video-card"
         @click="selectVideo(video.id)"
@@ -47,7 +70,33 @@ export default {
     return {
       videos: [],
       loading: true,
-      userId: localStorage.getItem('userId')
+      userId: localStorage.getItem('userId'),
+      category: 'junior' // 默认显示初中
+    }
+  },
+  computed: {
+    // 根据后端返回的 category 字段过滤视频
+    filteredVideos() {
+      return this.videos.filter(v => {
+        // 使用后端返回的 category 字段，默认为 'junior'
+        return (v.category || 'junior') === this.category
+      })
+    },
+    // 分类统计
+    categoryStats() {
+      let total = 0
+      let learned = 0
+      let unknown = 0
+      
+      this.filteredVideos.forEach(v => {
+        total += v.wordCount || 0
+        if (v.progress) {
+          learned += v.progress.learned || 0
+          unknown += v.progress.unknown || 0
+        }
+      })
+      
+      return { total, learned, unknown }
     }
   },
   mounted() {
@@ -73,6 +122,9 @@ export default {
     getProgress(video) {
       if (!video.progress || video.progress.total === 0) return 0
       return Math.round((video.progress.learned / video.progress.total) * 100)
+    },
+    switchCategory(cat) {
+      this.category = cat
     }
   }
 }
@@ -88,6 +140,53 @@ export default {
   font-size: 24px;
 }
 
+/* 分类标签样式 */
+.category-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.category-tabs button {
+  padding: 10px 24px;
+  border: 2px solid #4CAF50;
+  background: white;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  color: #4CAF50;
+  transition: all 0.3s;
+}
+
+.category-tabs button.active {
+  background: #4CAF50;
+  color: white;
+}
+
+.category-tabs button:hover:not(.active) {
+  background: #e8f5e9;
+}
+
+/* 分类统计样式 */
+.category-stats {
+  background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  display: flex;
+  gap: 24px;
+  font-size: 15px;
+}
+
+.category-stats span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #333;
+}
+
+/* 视频列表 */
 .video-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -111,6 +210,7 @@ export default {
 .video-card h3 {
   font-size: 18px;
   margin-bottom: 8px;
+  color: #333;
 }
 
 .video-card .desc {
@@ -139,7 +239,7 @@ export default {
 
 .video-card .progress-fill {
   height: 100%;
-  background: #4CAF50;
+  background: linear-gradient(90deg, #4CAF50, #8BC34A);
   border-radius: 3px;
   transition: width 0.3s;
 }

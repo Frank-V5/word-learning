@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { getDb, closeDb, userOps, videoOps, wordOps, progressOps, generateUserCode, generateId } from './db/index.js';
+import { getDb, closeDb, userOps, videoOps, wordOps, progressOps, troublesomeOps, generateUserCode, generateId } from './db/index.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -209,30 +209,37 @@ app.post('/api/progress', (req, res) => {
   }
 });
 
-// 获取错词本
+// 获取错词本 (支持分组和普通列表)
 app.get('/api/wrong-words', (req, res) => {
   try {
-    const { userId, videoId } = req.query;
+    const { userId, videoId, grouped } = req.query;
     
     if (!userId) {
       return res.status(400).json({ success: false, error: '缺少 userId' });
     }
     
-    const wrongWords = progressOps.getWrongWords(userId, videoId || null);
-    
-    const data = wrongWords.map(w => ({
-      id: w.word_id,
-      word: w.word,
-      phonetic: w.phonetic,
-      meaning: w.meaning,
-      pos: w.pos,
-      startTime: w.start_time,
-      endTime: w.end_time,
-      videoId: w.video_id,
-      videoTitle: w.video_title
-    }));
-    
-    res.json({ success: true, data });
+    if (grouped === 'true') {
+      // 按视频分组返回 (网格展示用)
+      const data = progressOps.getWrongWordsGrouped(userId);
+      res.json({ success: true, data });
+    } else {
+      // 简单列表形式
+      const wrongWords = progressOps.getWrongWords(userId, videoId || null);
+      
+      const data = wrongWords.map(w => ({
+        id: w.word_id,
+        word: w.word,
+        phonetic: w.phonetic,
+        meaning: w.meaning,
+        pos: w.pos,
+        startTime: w.start_time,
+        endTime: w.end_time,
+        videoId: w.video_id,
+        videoTitle: w.video_title
+      }));
+      
+      res.json({ success: true, data });
+    }
   } catch (error) {
     console.error('获取错词本失败:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -252,6 +259,59 @@ app.get('/api/stats', (req, res) => {
     res.json({ success: true, data: stats || { total: 0, known: 0, unknown: 0, new_count: 0 } });
   } catch (error) {
     console.error('获取统计失败:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============ 易错单词表接口 ============
+
+// 获取易错单词列表 (支持分组和普通列表)
+app.get('/api/troublesome-words', (req, res) => {
+  try {
+    const { userId, limit = 100, offset = 0, grouped } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: '缺少 userId' });
+    }
+    
+    if (grouped === 'true') {
+      // 按视频分组返回 (网格展示用)
+      const data = troublesomeOps.getGroupedByVideo(userId);
+      res.json({ success: true, data });
+    } else {
+      // 简单列表形式
+      const words = troublesomeOps.getAll(userId, parseInt(limit), parseInt(offset));
+      
+      const data = words.map(w => ({
+        word: w.word,
+        phonetic: w.phonetic,
+        meaning: w.meaning,
+        pos: w.pos,
+        wrongCount: w.wrong_count,
+        firstWrongAt: w.first_wrong_at
+      }));
+      
+      res.json({ success: true, data });
+    }
+  } catch (error) {
+    console.error('获取易错单词表失败:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 获取易错单词总数
+app.get('/api/troublesome-words/count', (req, res) => {
+  try {
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ success: false, error: '缺少 userId' });
+    }
+    
+    const count = troublesomeOps.getCount(userId);
+    res.json({ success: true, data: { count } });
+  } catch (error) {
+    console.error('获取易错单词数失败:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });

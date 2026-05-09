@@ -2,12 +2,45 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#4CAF50">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="单词学习">
+  <meta name="description" content="基于视频的英语单词学习平台，支持初中/高中词汇学习">
+  
   <title>英语单词学习平台</title>
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- Favicon -->
   <link rel="icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  
+  <!-- iOS Splash Screens -->
+  <link rel="apple-touch-startup-image" href="/icons/icon-512.png">
+  
+  <!-- 预连接API -->
+  <link rel="preconnect" href="/api">
 </head>
 <body>
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>
+  
+  <!-- 注册 Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('SW registered:', registration.scope);
+          })
+          .catch(error => {
+            console.log('SW registration failed:', error);
+          });
+      });
+    }
+  </script>
 </body>
 </html>

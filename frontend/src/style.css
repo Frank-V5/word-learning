@@ -44,9 +44,28 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: sticky;
+}
+
+/* 固定顶部导航栏 */
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#app > .header {
+  position: fixed;
   top: 0;
-  z-index: 100;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+#app > .main-content {
+  flex: 1;
+  margin-top: 70px;
 }
 
 .header .logo {
@@ -269,13 +288,15 @@ body {
 /* 单词卡片 */
 .word-card {
   perspective: 1000px;
-  height: 180px;
+  min-height: 180px;
+  height: auto;
   cursor: pointer;
 }
 
 .word-card-inner {
   position: relative;
   width: 100%;
+  min-height: 180px;
   height: 100%;
   transition: transform 0.6s;
   transform-style: preserve-3d;
@@ -289,7 +310,8 @@ body {
 .word-card-back {
   position: absolute;
   width: 100%;
-  height: 100%;
+  min-height: 180px;
+  height: auto;
   backface-visibility: hidden;
   border-radius: var(--radius);
   display: flex;
@@ -297,6 +319,7 @@ body {
   justify-content: center;
   align-items: center;
   padding: 20px;
+  padding-bottom: 70px; /* 为底部按钮留出空间 */
   box-shadow: var(--shadow);
 }
 
@@ -370,9 +393,16 @@ body {
 }
 
 .word-card .meaning {
-  font-size: 18px;
+  font-size: 16px;
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+  max-height: 80px;
+  overflow-y: auto;
+  line-height: 1.4;
+  padding: 4px;
+  /* 长文本换行 */
+  word-break: break-word;
+  hyphens: auto;
 }
 
 .word-card .meaning .pos {
@@ -380,10 +410,21 @@ body {
   margin-right: 8px;
 }
 
-.word-card .status-btns {
+/* 固定按钮区域 */
+.word-card .card-actions {
   display: flex;
+  justify-content: center;
   gap: 12px;
-  margin-top: 8px;
+}
+
+.word-card .status-btns {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
 }
 
 .word-card .status-btns button {
@@ -520,6 +561,137 @@ body {
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
+  }
+}
+
+/* iPad 优化 */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .header {
+    padding: 16px 24px;
+  }
+  
+  .header .logo {
+    font-size: 22px;
+  }
+  
+  .cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+  }
+  
+  .word-card {
+    height: 170px;
+  }
+  
+  .word-card .word-text {
+    font-size: 28px;
+  }
+  
+  .video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  
+  /* 触摸优化 */
+  .btn {
+    min-height: 44px;
+  }
+  
+  .word-card .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .word-card .status-btns button {
+    min-height: 44px;
+    padding: 10px 18px;
+  }
+}
+
+/* iPad Pro / 大平板 */
+@media (min-width: 1024px) {
+  .cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+  }
+  
+  .word-card {
+    height: 180px;
+  }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+  /* 增大点击区域 */
+  .btn {
+    min-height: 48px;
+    padding: 14px 28px;
+  }
+  
+  .btn-small {
+    min-height: 40px;
+    padding: 10px 18px;
+  }
+  
+  .word-card .icon-btn {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .word-card .status-btns button {
+    min-height: 48px;
+    padding: 12px 20px;
+  }
+  
+  /* 移除 hover 效果 */
+  .video-card:hover {
+    transform: none;
+  }
+  
+  .word-card .icon-btn:hover {
+    transform: none;
+  }
+  
+  /* 添加 active 效果 */
+  .btn:active {
+    transform: scale(0.98);
+  }
+  
+  .video-card:active {
+    transform: scale(0.99);
+  }
+  
+  .word-card .icon-btn:active {
+    transform: scale(0.95);
+  }
+}
+
+/* 安全区域适配 (iPhone X / iPad) */
+@supports (padding: env(safe-area-inset-top)) {
+  .header {
+    padding-top: calc(16px + env(safe-area-inset-top));
+    padding-left: calc(24px + env(safe-area-inset-left));
+    padding-right: calc(24px + env(safe-area-inset-right));
+  }
+  
+  .words-section,
+  .review-page,
+  .video-list {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    padding-left: calc(24px + env(safe-area-inset-left));
+    padding-right: calc(24px + env(safe-area-inset-right));
+  }
+}
+
+/* PWA 全屏模式 */
+@media (display-mode: standalone) {
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  .header {
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
   }
 }
 

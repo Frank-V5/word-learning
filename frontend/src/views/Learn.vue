@@ -98,11 +98,45 @@ export default {
         if (data.success) {
           this.video = data.data.video
           this.words = data.data.words
+          
+          // 检查是否有从易错表跳转过来的参数
+          const startTime = this.$route.query.startTime
+          const targetWord = this.$route.query.word
+          
+          if (startTime) {
+            // 延迟执行，等待视频加载
+            this.$nextTick(() => {
+              setTimeout(() => {
+                this.playFrom(parseInt(startTime))
+                this.scrollToVideo()
+                
+                // 高亮目标单词
+                if (targetWord) {
+                  this.highlightWord(targetWord)
+                }
+              }, 500)
+            })
+          }
         }
       } catch (e) {
         console.error('获取数据失败', e)
       } finally {
         this.loading = false
+      }
+    },
+    
+    highlightWord(wordText) {
+      // 找到目标单词并翻转卡片
+      const word = this.words.find(w => w.word.toLowerCase() === wordText.toLowerCase())
+      if (word) {
+        word.flipped = true
+        // 滚动到该单词
+        this.$nextTick(() => {
+          const card = document.querySelector(`.word-card:has(.word-text)`)
+          if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        })
       }
     },
     
