@@ -32,6 +32,7 @@
             @click="toggleCard(word)"
           >
             <div class="card-front">
+              <button class="flag-btn" :class="{ active: flaggedIds.has(word.id) }" @click.stop="toggleFlag(word)" :title="flaggedIds.has(word.id) ? '取消标记' : '标记为误提取词'">🚩</button>
               <div class="word-text">{{ word.word }}</div>
               <div class="phonetic" v-if="word.phonetic">{{ word.phonetic }}</div>
               <div class="card-actions-front">
@@ -68,6 +69,7 @@
       :allWords="player.allWords"
       :currentIndex="player.currentIndex"
       :isPlaying="player.isPlaying"
+      @update:playing="player.isPlaying = $event"
       @close="closePlayer"
       @navigate="navigateToWord"
     />
@@ -76,6 +78,8 @@
 
 <script>
 import VideoPlayerOverlay from '../components/VideoPlayerOverlay.vue'
+import { speak as speakWord } from '../utils/audio'
+import { fetchFlaggedSet, toggleFlag as toggleFlagApi } from '../utils/flags'
 
 export default {
   name: 'Review',
@@ -88,6 +92,7 @@ export default {
       loading: true,
       expandedVideos: [],
       flippedCards: [],
+      flaggedIds: new Set(),
       totalCount: 0,
       userId: localStorage.getItem('userId'),
       // 视频播放器状态
@@ -103,6 +108,7 @@ export default {
   },
   mounted() {
     this.fetchWrongWords()
+    this.loadFlags()
   },
   methods: {
     async fetchWrongWords() {
@@ -141,13 +147,19 @@ export default {
     },
     
     speak(text) {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel()
-        const utterance = new SpeechSynthesisUtterance(text)
-        utterance.lang = 'en-US'
-        utterance.rate = 0.8
-        window.speechSynthesis.speak(utterance)
-      }
+      speakWord(text)
+    },
+
+    async loadFlags() {
+      this.flaggedIds = await fetchFlaggedSet()
+    },
+
+    async toggleFlag(word) {
+      const flagged = await toggleFlagApi(word.id, this.userId)
+      if (flagged === null) return
+      const next = new Set(this.flaggedIds)
+      flagged ? next.add(word.id) : next.delete(word.id)
+      this.flaggedIds = next
     },
     
     // 打开视频播放器

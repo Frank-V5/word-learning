@@ -10,11 +10,23 @@
       >
         初中
       </button>
-      <button 
-        :class="{ active: category === 'senior' }" 
+      <button
+        :class="{ active: category === 'senior' }"
         @click="switchCategory('senior')"
       >
         高中
+      </button>
+      <button
+        :class="{ active: category === 'primary' }"
+        @click="switchCategory('primary')"
+      >
+        小学
+      </button>
+      <button
+        class="pet-tab"
+        @click="goToPet"
+      >
+        🎯 PET 备考
       </button>
     </div>
     
@@ -125,6 +137,9 @@ export default {
     },
     switchCategory(cat) {
       this.category = cat
+    },
+    goToPet() {
+      this.$router.push({ name: 'PetUnits' })
     }
   }
 }

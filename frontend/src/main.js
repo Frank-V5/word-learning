@@ -9,7 +9,12 @@ const routes = [
   { path: '/videos', name: 'Videos', component: () => import('./views/Videos.vue') },
   { path: '/learn/:videoId', name: 'Learn', component: () => import('./views/Learn.vue') },
   { path: '/review', name: 'Review', component: () => import('./views/Review.vue') },
-  { path: '/troublesome', name: 'Troublesome', component: () => import('./views/Troublesome.vue') }
+  { path: '/troublesome', name: 'Troublesome', component: () => import('./views/Troublesome.vue') },
+  { path: '/admin', name: 'Admin', component: () => import('./views/Admin.vue') },
+  { path: '/pet', name: 'PetUnits', component: () => import('./views/PetUnits.vue') },
+  { path: '/pet/learn/:unit', name: 'PetLearn', component: () => import('./views/PetLearn.vue') },
+  { path: '/pet/review', name: 'PetReview', component: () => import('./views/PetReview.vue') },
+  { path: '/pet/troublesome', name: 'PetTroublesome', component: () => import('./views/PetTroublesome.vue') }
 ]
 
 const router = createRouter({

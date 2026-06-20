@@ -72,3 +72,58 @@ CREATE INDEX IF NOT EXISTS idx_progress_status ON progress(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_progress_word ON progress(word_id);
 CREATE INDEX IF NOT EXISTS idx_troublesome_user ON troublesome_words(user_id);
 CREATE INDEX IF NOT EXISTS idx_troublesome_word ON troublesome_words(user_id, word);
+
+-- 单词误提取标记 (全局: 行存在=已标记; 用户标记 -> 管理员后台清理)
+CREATE TABLE IF NOT EXISTS word_flags (
+    word_id     TEXT PRIMARY KEY,
+    word        TEXT,
+    video_id    TEXT,
+    flagged_by  TEXT,
+    flagged_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_word_flags_video ON word_flags(video_id);
+
+-- ============ PET 备考子系统 (独立隔离, 不影响现有 小学/初中/高中) ============
+-- 规范词字典: 全平台单词身份统一 (id=canonical_id=w_<sha1(norm_key)>, 同词同 id)
+CREATE TABLE IF NOT EXISTS word_dict (
+    id          TEXT PRIMARY KEY,      -- canonical_id, 全平台共享
+    norm_key    TEXT UNIQUE,
+    word        TEXT,
+    phonetic    TEXT,
+    meaning     TEXT,
+    pos         TEXT,
+    is_pet      INTEGER DEFAULT 0,     -- 是否 PET 词
+    is_covered  INTEGER DEFAULT 0      -- PET 词且有 小学/初中/高中 视频覆盖
+);
+CREATE INDEX IF NOT EXISTS idx_word_dict_pet ON word_dict(is_pet);
+
+-- PET 词分到 covered/uncovered 单元
+CREATE TABLE IF NOT EXISTS pet_unit_words (
+    group_unit   TEXT,
+    canonical_id TEXT,
+    sort_order   INTEGER,
+    PRIMARY KEY (group_unit, canonical_id)
+);
+
+-- PET 学习进度 (PET 错词本 = status='unknown', 动态)
+CREATE TABLE IF NOT EXISTS pet_progress (
+    user_id         TEXT,
+    canonical_id    TEXT,
+    status          TEXT DEFAULT 'new',   -- new / known / unknown
+    flip_count      INTEGER DEFAULT 0,
+    last_flipped_at DATETIME,
+    PRIMARY KEY (user_id, canonical_id)
+);
+
+-- PET 易错表 (永久累积, 不随进度删减)
+CREATE TABLE IF NOT EXISTS pet_troublesome (
+    user_id        TEXT,
+    canonical_id   TEXT,
+    word           TEXT,
+    phonetic       TEXT,
+    meaning        TEXT,
+    pos            TEXT,
+    wrong_count    INTEGER DEFAULT 1,
+    first_wrong_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, canonical_id)
+);

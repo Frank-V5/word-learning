@@ -13,10 +13,13 @@ pm2 start src/index.js --name word-learning-api 2>/dev/null || pm2 restart word-
 sleep 2
 
 # 2. 同步前端文件到 Nginx 目录
+# ⚠️ 绝对不要用 --delete！会删除 videos 目录里的视频文件
+# ⚠️ 已加 --exclude=videos 保护，但最安全还是不用 --delete
 echo "📋 同步前端文件..."
-rsync -av --delete $PROJECT_DIR/frontend/dist/ $WWW_DIR/ 2>/dev/null
+rsync -av --exclude='videos' $PROJECT_DIR/frontend/dist/ $WWW_DIR/ 2>/dev/null
+mkdir -p $WWW_DIR/videos/high_school
 mkdir -p $WWW_DIR/videos
-rsync -av $PROJECT_DIR/videos/*.mp4 $WWW_DIR/videos/ 2>/dev/null || true
+# 视频文件由下载脚本单独管理，不在此处同步
 chmod -R 755 $WWW_DIR
 
 # 3. 启动 Nginx

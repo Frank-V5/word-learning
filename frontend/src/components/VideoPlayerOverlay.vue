@@ -94,7 +94,8 @@ export default {
     },
     
     onVideoEnded() {
-      // 播放结束，      this.$emit('update:playing', false)
+      // 播放结束，重置播放状态
+      this.$emit('update:playing', false)
     }
   }
 }
@@ -107,7 +108,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 1,5,0.9);
+  background: rgba(0, 0, 0, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;

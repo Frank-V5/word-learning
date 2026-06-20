@@ -12,6 +12,8 @@
         <button class="btn btn-secondary btn-small" @click="goToTroublesome">
           易错表 <span v-if="troublesomeCount > 0">({{ troublesomeCount }})</span>
         </button>
+        <button class="btn btn-secondary btn-small" @click="goToPet">🎯 PET备考</button>
+        <button class="btn btn-link btn-small" @click="goToAdmin" title="管理后台">⚙️</button>
         <button class="btn btn-secondary btn-small" @click="logout" v-if="userId">退出</button>
       </nav>
     </header>
@@ -55,6 +57,12 @@ export default {
     goToTroublesome() {
       this.$router.push({ name: 'Troublesome' })
     },
+    goToAdmin() {
+      this.$router.push({ name: 'Admin' })
+    },
+    goToPet() {
+      this.$router.push({ name: 'PetUnits' })
+    },
     logout() {
       localStorage.removeItem('userId')
       localStorage.removeItem('nickname')
@@ -62,10 +70,10 @@ export default {
     },
     async fetchWrongCount() {
       try {
-        const res = await fetch(`/api/wrong-words?userId=${this.userId}`)
+        const res = await fetch(`/api/wrong-words/count?userId=${this.userId}`)
         const data = await res.json()
         if (data.success) {
-          this.wrongCount = data.data.length
+          this.wrongCount = data.data.count
         }
       } catch (e) {
         console.error('获取错词数量失败', e)
@@ -83,7 +91,12 @@ export default {
       }
     },
     updateWrongCount(count) {
-      this.wrongCount = count
+      // 无参数时（如易错表标记"不会"后）重新拉取真实数量，避免徽标变 undefined
+      if (count === undefined) {
+        this.fetchWrongCount()
+      } else {
+        this.wrongCount = count
+      }
     },
     updateTroublesomeCount(count) {
       this.troublesomeCount = count

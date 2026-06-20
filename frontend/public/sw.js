@@ -1,7 +1,8 @@
 // Service Worker for PWA
 const CACHE_NAME = 'word-learning-v1';
-const STATIC_CACHE = 'static-v1';
-const API_CACHE = 'api-v1';
+// bump 到 v2：让老用户清掉旧的 static-v1 缓存，重新从网络拉新版前端
+const STATIC_CACHE = 'static-v2';
+const API_CACHE = 'api-v2';
 
 // 需要缓存的静态资源
 const STATIC_ASSETS = [

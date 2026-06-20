@@ -1,8 +1,8 @@
 <template>
   <div class="learn-page">
-    <!-- 视频播放区 -->
-    <div class="video-section">
-      <video 
+    <!-- 视频播放区 (PET 等无视频单元隐藏) -->
+    <div class="video-section" v-if="video.videoUrl">
+      <video
         ref="videoPlayer"
         :src="video.videoUrl"
         controls
@@ -25,18 +25,20 @@
       
       <div v-else class="cards-grid">
         <div 
-          v-for="word in words" 
+          v-for="word in words"
           :key="word.id"
           class="word-card"
           :class="getStatusClass(word)"
+          :data-card-id="word.id"
           @click="flipCard(word)"
         >
           <div class="word-card-inner">
             <!-- 正面 -->
             <div class="word-card-front">
+              <button class="flag-btn" :class="{ active: flaggedIds.has(word.id) }" @click.stop="toggleFlag(word)" :title="flaggedIds.has(word.id) ? '取消标记' : '标记为误提取词'">🚩</button>
               <span class="status-badge" v-if="word.status === 'known'">✅</span>
               <span class="status-badge" v-if="word.status === 'unknown'">🔴</span>
-              <div class="word-text">{{ word.word }}</div>
+              <div class="word-text">{{ word.word }}<span class="pet-tag" v-if="isPet(word.word)">PET</span></div>
               <div class="phonetic">{{ word.phonetic }}</div>
               <div class="card-actions" @click.stop>
                 <button class="icon-btn speak" @click="speak(word.word)" title="发音">🔊</button>
@@ -67,6 +69,10 @@
 </template>
 
 <script>
+import { speak as speakWord } from '../utils/audio'
+import { fetchFlaggedSet, toggleFlag as toggleFlagApi } from '../utils/flags'
+import { fetchPetWordSet, normKey as petNormKey } from '../utils/pet'
+
 export default {
   name: 'Learn',
   data() {
@@ -75,6 +81,8 @@ export default {
       words: [],
       loading: true,
       flippedCards: new Set(),
+      flaggedIds: new Set(),
+      petSet: null,
       userId: localStorage.getItem('userId')
     }
   },
@@ -88,6 +96,8 @@ export default {
   },
   mounted() {
     this.fetchData()
+    this.loadFlags()
+    this.loadPetSet()
   },
   methods: {
     async fetchData() {
@@ -130,9 +140,9 @@ export default {
       const word = this.words.find(w => w.word.toLowerCase() === wordText.toLowerCase())
       if (word) {
         word.flipped = true
-        // 滚动到该单词
+        // 滚动到该单词（按稳定 id 定位，避免 :has() 误命中第一张卡）
         this.$nextTick(() => {
-          const card = document.querySelector(`.word-card:has(.word-text)`)
+          const card = document.querySelector(`[data-card-id="${word.id}"]`)
           if (card) {
             card.scrollIntoView({ behavior: 'smooth', block: 'center' })
           }
@@ -152,15 +162,27 @@ export default {
     },
     
     speak(text) {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel()
-        const utterance = new SpeechSynthesisUtterance(text)
-        utterance.lang = 'en-US'
-        utterance.rate = 0.8
-        window.speechSynthesis.speak(utterance)
-      } else {
-        alert('您的浏览器不支持发音功能')
-      }
+      speakWord(text)
+    },
+
+    async loadFlags() {
+      this.flaggedIds = await fetchFlaggedSet()
+    },
+
+    async loadPetSet() {
+      this.petSet = await fetchPetWordSet()
+    },
+
+    isPet(word) {
+      return this.petSet && this.petSet.has(petNormKey(word))
+    },
+
+    async toggleFlag(word) {
+      const flagged = await toggleFlagApi(word.id, this.userId)
+      if (flagged === null) return
+      const next = new Set(this.flaggedIds)
+      flagged ? next.add(word.id) : next.delete(word.id)
+      this.flaggedIds = next
     },
     
     playFrom(time) {

@@ -462,6 +462,36 @@ body {
   font-size: 20px;
 }
 
+/* 误提取标记按钮: 卡片左上角独立区域, 远离单词和操作按钮, 防误触 */
+.word-card { position: relative; }
+
+/* PET 角标 (小学/初中/高中 卡片上, 该词是 PET 词时显示) */
+.pet-tag { display: inline-block; background: #1565c0; color: #fff; font-size: 10px;
+  padding: 1px 6px; border-radius: 8px; margin-left: 6px; vertical-align: middle;
+  font-weight: 600; letter-spacing: .5px; }
+.flag-btn {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  z-index: 3;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 2px 4px;
+  line-height: 1;
+  filter: grayscale(1);
+  opacity: 0.35;
+  transition: opacity .15s, filter .15s, transform .1s;
+}
+.flag-btn:hover { opacity: 0.85; transform: scale(1.15); }
+.flag-btn:active { transform: scale(0.92); }
+.flag-btn.active { filter: none; opacity: 1; animation: flag-pop .2s ease; }
+@keyframes flag-pop {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
 /* 复习页面 */
 .review-page {
   padding: 24px;
