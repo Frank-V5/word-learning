@@ -20,7 +20,13 @@ export function getDb() {
     // 初始化表结构
     const schema = readFileSync(SCHEMA_PATH, 'utf-8');
     db.exec(schema);
-    
+
+    // 幂等迁移: 为旧库的 word_dict 补充 example_en / example_cn 列
+    // (CREATE TABLE IF NOT EXISTS 不会给已存在的表加列, 故在此显式 ALTER)
+    const dictCols = db.prepare("PRAGMA table_info(word_dict)").all().map(c => c.name);
+    if (!dictCols.includes('example_en')) db.exec("ALTER TABLE word_dict ADD COLUMN example_en TEXT");
+    if (!dictCols.includes('example_cn')) db.exec("ALTER TABLE word_dict ADD COLUMN example_cn TEXT");
+
     console.log('✅ 数据库已连接:', DB_PATH);
   }
   return db;
@@ -529,6 +535,7 @@ export const petOps = {
     const db = getDb();
     return db.prepare(`
       SELECT w.id AS canonical_id, w.word, w.phonetic, w.meaning, w.pos, w.is_covered,
+             w.example_en, w.example_cn,
              p.status, p.flip_count, u.sort_order
       FROM pet_unit_words u JOIN word_dict w ON w.id=u.canonical_id
       LEFT JOIN pet_progress p ON p.canonical_id=u.canonical_id AND p.user_id=?
@@ -561,6 +568,7 @@ export const petOps = {
     const db = getDb();
     return db.prepare(`
       SELECT w.id AS canonical_id, w.word, w.phonetic, w.meaning, w.pos, w.is_covered,
+             w.example_en, w.example_cn,
              p.status, p.flip_count, u.group_unit
       FROM pet_progress p
       JOIN word_dict w ON w.id=p.canonical_id
@@ -574,7 +582,7 @@ export const petOps = {
     const db = getDb();
     return db.prepare(`
       SELECT t.canonical_id, t.word, t.phonetic, t.meaning, t.pos, t.wrong_count, t.first_wrong_at,
-             w.is_covered, u.group_unit
+             w.is_covered, w.example_en, w.example_cn, u.group_unit
       FROM pet_troublesome t
       LEFT JOIN word_dict w ON w.id=t.canonical_id
       LEFT JOIN pet_unit_words u ON u.canonical_id=t.canonical_id

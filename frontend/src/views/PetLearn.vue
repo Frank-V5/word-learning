@@ -25,7 +25,20 @@
           <div class="acts" @click.stop>
             <button class="btn-spk" @click="speak(w.word)">🔊</button>
             <button v-if="w.is_covered" class="btn-vid" @click="openVideo(w)">📺 看视频</button>
+            <button class="btn-ex" @click="w.showEx = !w.showEx">📝例句</button>
           </div>
+          <!-- 例句展示区: 点击「📝例句」后卡片增高 + 淡入; 英文可点发音 -->
+          <transition name="exfade">
+            <div v-if="w.showEx" class="example" @click.stop>
+              <template v-if="w.example_en">
+                <div class="ex-en" @click="speak(w.example_en)" title="点击朗读例句">
+                  📖 {{ w.example_en }}
+                </div>
+                <div class="ex-cn">{{ w.example_cn }}</div>
+              </template>
+              <div v-else class="ex-none">暂无例句</div>
+            </div>
+          </transition>
           <div class="btns" @click.stop>
             <button class="bk" @click="mark(w, 'known')">✅ 认识</button>
             <button class="bu" @click="mark(w, 'unknown')">❌ 不会</button>
@@ -64,7 +77,7 @@ export default {
   methods: {
     async load() {
       this.loading = true
-      try { this.words = (await fetchPetUnit(this.$route.params.unit, this.userId)).map(w => ({ ...w, flipped: false })) }
+      try { this.words = (await fetchPetUnit(this.$route.params.unit, this.userId)).map(w => ({ ...w, flipped: false, showEx: false })) }
       catch (e) { console.error(e) } finally { this.loading = false }
     },
     speak(t) { speakWord(t) },
@@ -105,7 +118,20 @@ export default {
 .btn-spk, .btn-vid { background: #f0f4f8; border: 1px solid #dde; border-radius: 8px; padding: 9px 16px;
   cursor: pointer; font-size: 15px; margin: 4px; }
 .btn-vid { background: #e3f2fd; border-color: #bbdefb; }
+.btn-ex { background: #fff3e0; border: 1px solid #ffe0b2; border-radius: 8px; padding: 9px 16px;
+  cursor: pointer; font-size: 15px; margin: 4px; color: #e65100; }
 .acts { margin: 10px 0; }
+/* 例句展示区: 卡片增高 + 淡入 */
+.example { margin: 4px 2px 2px; padding: 10px 12px; background: #fffaf2; border: 1px dashed #ffcc80;
+  border-radius: 10px; text-align: left; }
+.ex-en { font-size: 15px; line-height: 1.5; color: #333; cursor: pointer; }
+.ex-en:hover { color: #e65100; }
+.ex-cn { font-size: 13px; color: #888; margin-top: 5px; line-height: 1.4; }
+.ex-none { font-size: 13px; color: #aaa; text-align: center; }
+/* 高度增高 + 淡入过渡 */
+.exfade-enter-active, .exfade-leave-active { transition: all .28s ease; overflow: hidden; }
+.exfade-enter-from, .exfade-leave-to { opacity: 0; max-height: 0; margin: 0; padding: 0 12px; border-width: 0; }
+.exfade-enter-to, .exfade-leave-from { opacity: 1; max-height: 240px; }
 .btns { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
 .bk, .bu { flex: 1; border: none; padding: 11px 0; border-radius: 8px; cursor: pointer; font-size: 15px; color: #fff; }
 .bk { background: #4caf50; }

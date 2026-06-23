@@ -43,6 +43,20 @@
                 <div class="acts" @click.stop>
                   <button class="btn-spk" @click="speak(w.word)">🔊</button>
                   <button v-if="w.is_covered" class="btn-vid" @click="openVideo(w)">📺 看视频</button>
+                  <button class="btn-ex" @click="w.showEx = !w.showEx">📝例句</button>
+                </div>
+                <transition name="exfade">
+                  <div v-if="w.showEx" class="example" @click.stop>
+                    <template v-if="w.example_en">
+                      <div class="ex-en" @click="speak(w.example_en)" title="点击朗读">
+                        📖 {{ w.example_en }}
+                      </div>
+                      <div class="ex-cn">{{ w.example_cn }}</div>
+                    </template>
+                    <div v-else class="ex-none">暂无例句</div>
+                  </div>
+                </transition>
+                <div class="btns" @click.stop>
                   <button class="bk" @click="known(w)">✅ 认识（移出）</button>
                 </div>
               </div>
@@ -67,6 +81,8 @@ export default {
     return { words: [], loading: true, userId: localStorage.getItem('userId'),
              player: { visible: false, url: '', title: '', startTime: 0, word: '' } }
   },
+  methods: {
+    async load() { try { this.words = (await fetchPetReview(this.userId)).map(w => ({ ...w, flipped: false, showEx: false })) } catch(e){} finally { this.loading = false } },
   computed: {
     grouped() {
       const m = {}
@@ -77,9 +93,6 @@ export default {
     uncoveredGroups() { return this.grouped.filter(g => g.unit.startsWith('uncovered')) }
   },
   async mounted() { await this.load() },
-  methods: {
-    async load() { try { this.words = (await fetchPetReview(this.userId)).map(w => ({ ...w, flipped: false })) } catch(e){} finally { this.loading = false } },
-    speak(t) { speakWord(t) },
     unitLabel(gu) { const m = (gu||'').match(/(covered|uncovered)_(\d+)/); if(!m) return gu; return m[1]==='covered' ? `📚 已覆盖·第${parseInt(m[2],10)}组` : `🎯 未覆盖·第${parseInt(m[2],10)}组` },
     unitShort(gu) { const m = (gu||'').match(/_(\d+)/); return m ? `第${parseInt(m[1],10)}组` : gu },
     scrollTo(unit) { const el = document.getElementById('sec-' + unit); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
@@ -133,6 +146,16 @@ export default {
 .acts { margin-top:10px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
 .bk { background:#4caf50; color:#fff; border:none; padding:9px 14px; border-radius:8px; cursor:pointer; font-size:14px; }
 .cov-tag { position:absolute; top:8px; right:10px; font-size:12px; }
+.btn-ex { background:#fff3e0; border:1px solid #ffe0b2; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:14px; margin:4px; color:#e65100; }
+.example { margin:4px 2px; padding:10px 12px; background:#fffaf2; border:1px dashed #ffcc80; border-radius:10px; text-align:left; }
+.ex-en { font-size:14px; line-height:1.5; color:#333; cursor:pointer; }
+.ex-en:hover { color:#e65100; }
+.ex-cn { font-size:12px; color:#888; margin-top:5px; line-height:1.4; }
+.ex-none { font-size:12px; color:#aaa; text-align:center; }
+.btns { display:flex; gap:10px; justify-content:center; margin-top:10px; }
+.exfade-enter-active, .exfade-leave-active { transition: all .28s ease; overflow:hidden; }
+.exfade-enter-from, .exfade-leave-to { opacity:0; max-height:0; margin:0; padding:0 12px; border-width:0; }
+.exfade-enter-to, .exfade-leave-from { opacity:1; max-height:240px; }
 .loading,.empty { color:#888; padding:20px; }
 /* 手机隐藏侧栏 */
 @media (max-width: 767px) { .sidenav { display: none; } .pet-layout { display: block; } }
