@@ -39,9 +39,21 @@
               </div>
               <div class="face back">
                 <div class="meaning"><span class="pos" v-if="w.pos">{{ w.pos }}</span>{{ w.meaning }}</div>
+                <div class="mnemonic" v-if="w.mnemonic" @click.stop>🔠 {{ w.mnemonic }}</div>
                 <div class="acts" @click.stop>
                   <button class="btn-spk" @click="speak(w.word)">🔊</button>
                   <button v-if="w.is_covered" class="btn-vid" @click="openVideo(w)">📺 看视频</button>
+                  <button class="btn-ex" @click="w.showEx = !w.showEx">📝例句</button>
+                </div>
+                <div v-if="w.showEx" class="example" @click.stop>
+                  <template v-if="w.example_en">
+                    <div class="ex-en" @click="speak(w.example_en)" title="点击朗读">📖 {{ w.example_en }}</div>
+                    <div class="ex-cn">{{ w.example_cn }}</div>
+                  </template>
+                  <div v-else class="ex-none">暂无例句</div>
+                </div>
+                <div class="btns" @click.stop>
+                  <button class="bu" @click="unknown(w)">❌ 不认识</button>
                 </div>
                 <div class="hint2">错次 {{ w.wrong_count }} · 永久留存</div>
               </div>
@@ -57,7 +69,7 @@
 </template>
 <script>
 import { speak as speakWord } from '../utils/audio'
-import { fetchPetTroublesome, fetchPetVideoLink } from '../utils/pet'
+import { fetchPetTroublesome, fetchPetVideoLink, petProgress } from '../utils/pet'
 import PetVideoOverlay from '../components/PetVideoOverlay.vue'
 export default {
   name: 'PetTroublesome',
@@ -75,9 +87,10 @@ export default {
     coveredGroups() { return this.grouped.filter(g => g.unit.startsWith('covered')) },
     uncoveredGroups() { return this.grouped.filter(g => g.unit.startsWith('uncovered')) }
   },
-  async mounted() { try { this.words = (await fetchPetTroublesome(this.userId)).map(w => ({ ...w, flipped: false })) } catch(e){} finally { this.loading = false } },
+  async mounted() { try { this.words = (await fetchPetTroublesome(this.userId)).map(w => ({ ...w, flipped: false, showEx: false })) } catch(e){} finally { this.loading = false } },
   methods: {
     speak(t) { speakWord(t) },
+    async unknown(w) { await petProgress(this.userId, w.canonical_id, 'unknown'); w.wrong_count = (w.wrong_count || 1) + 1 },
     unitLabel(gu) { const m = (gu||'').match(/(covered|uncovered)_(\d+)/); if(!m) return gu; return m[1]==='covered' ? `📚 已覆盖·第${parseInt(m[2],10)}组` : `🎯 未覆盖·第${parseInt(m[2],10)}组` },
     unitShort(gu) { const m = (gu||'').match(/_(\d+)/); return m ? `第${parseInt(m[1],10)}组` : gu },
     scrollTo(unit) { const el = document.getElementById('sec-' + unit); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
@@ -112,7 +125,7 @@ export default {
 .grp-h.unc { color: #1565c0; }
 .cnt { color:#999; font-weight:400; font-size:13px; }
 .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
-.tcard { position:relative; background:#fff; border:2px solid #ffe0b2; border-radius:12px; padding:20px 16px; min-height:148px; cursor:pointer; }
+.tcard { position:relative; background:#fff; border:2px solid #ffe0b2; border-radius:12px; padding:20px 16px; min-height:176px; cursor:pointer; }
 .tcard.flipped { border-color:#ff9800; background:#fff8e1; }
 .face { text-align:center; }
 .face.back { display:none; }
@@ -121,10 +134,19 @@ export default {
 .word { font-size:24px; font-weight:700; margin:12px 0 6px; }
 .ph { color:#777; font-size:15px; font-family:monospace; margin-bottom:12px; }
 .meaning { font-size:16px; line-height:1.5; margin:10px 4px; }
+.mnemonic { font-size:13px; line-height:1.45; margin:6px 4px; padding:7px 10px; background:#e8f5e9; border-left:3px solid #43a047; border-radius:6px; color:#2e7d32; text-align:left; }
 .pos { color:#1565c0; margin-right:5px; font-size:12px; }
 .btn-spk { background:#f0f4f8; border:1px solid #dde; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:14px; margin:4px; }
 .btn-vid { background:#e3f2fd; border:1px solid #bbdefb; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:14px; margin:4px; }
+.btn-ex { background:#fff3e0; border:1px solid #ffe0b2; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:14px; margin:4px; color:#e65100; }
 .acts { margin-top:8px; display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+.example { margin:4px 2px; padding:10px 12px; background:#fffaf2; border:1px dashed #ffcc80; border-radius:10px; text-align:left; }
+.ex-en { font-size:14px; line-height:1.5; color:#333; cursor:pointer; }
+.ex-en:hover { color:#e65100; }
+.ex-cn { font-size:13px; color:#888; margin-top:5px; line-height:1.4; }
+.ex-none { font-size:13px; color:#aaa; text-align:center; }
+.btns { display:flex; gap:10px; justify-content:center; margin-top:10px; }
+.bu { background:#ef5350; color:#fff; border:none; padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px; }
 .hint2 { color:#999; font-size:11px; margin-top:8px; }
 .wc { position:absolute; top:8px; right:10px; background:#ef5350; color:#fff; font-size:12px; padding:2px 8px; border-radius:10px; }
 .cov-tag { position:absolute; top:8px; left:10px; font-size:12px; }

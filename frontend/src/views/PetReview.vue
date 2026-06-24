@@ -40,6 +40,7 @@
               </div>
               <div class="face back">
                 <div class="meaning"><span class="pos" v-if="w.pos">{{ w.pos }}</span>{{ w.meaning }}</div>
+                <div class="mnemonic" v-if="w.mnemonic" @click.stop>🔠 {{ w.mnemonic }}</div>
                 <div class="acts" @click.stop>
                   <button class="btn-spk" @click="speak(w.word)">🔊</button>
                   <button v-if="w.is_covered" class="btn-vid" @click="openVideo(w)">📺 看视频</button>
@@ -81,8 +82,6 @@ export default {
     return { words: [], loading: true, userId: localStorage.getItem('userId'),
              player: { visible: false, url: '', title: '', startTime: 0, word: '' } }
   },
-  methods: {
-    async load() { try { this.words = (await fetchPetReview(this.userId)).map(w => ({ ...w, flipped: false, showEx: false })) } catch(e){} finally { this.loading = false } },
   computed: {
     grouped() {
       const m = {}
@@ -93,6 +92,8 @@ export default {
     uncoveredGroups() { return this.grouped.filter(g => g.unit.startsWith('uncovered')) }
   },
   async mounted() { await this.load() },
+  methods: {
+    async load() { try { this.words = (await fetchPetReview(this.userId)).map(w => ({ ...w, flipped: false, showEx: false })) } catch(e){} finally { this.loading = false } },
     unitLabel(gu) { const m = (gu||'').match(/(covered|uncovered)_(\d+)/); if(!m) return gu; return m[1]==='covered' ? `📚 已覆盖·第${parseInt(m[2],10)}组` : `🎯 未覆盖·第${parseInt(m[2],10)}组` },
     unitShort(gu) { const m = (gu||'').match(/_(\d+)/); return m ? `第${parseInt(m[1],10)}组` : gu },
     scrollTo(unit) { const el = document.getElementById('sec-' + unit); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) },
@@ -131,7 +132,7 @@ export default {
 .grp-h.unc { color: #1565c0; }
 .cnt { color:#999; font-weight:400; font-size:13px; }
 .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
-.rcard { position:relative; background:#fff; border:2px solid #eee; border-radius:12px; padding:20px 16px; min-height:148px; cursor:pointer; }
+.rcard { position:relative; background:#fff; border:2px solid #eee; border-radius:12px; padding:20px 16px; min-height:176px; cursor:pointer; }
 .rcard.flipped { border-color:#ef5350; background:#fdecea; }
 .face { text-align:center; }
 .face.back { display:none; }
@@ -140,6 +141,7 @@ export default {
 .word { font-size:24px; font-weight:700; margin:12px 0 6px; }
 .ph { color:#777; font-size:15px; font-family:monospace; margin-bottom:12px; }
 .meaning { font-size:16px; line-height:1.5; margin:10px 4px; }
+.mnemonic { font-size:13px; line-height:1.45; margin:6px 4px; padding:7px 10px; background:#e8f5e9; border-left:3px solid #43a047; border-radius:6px; color:#2e7d32; text-align:left; }
 .pos { color:#1565c0; margin-right:5px; font-size:12px; }
 .btn-spk { background:#f0f4f8; border:1px solid #dde; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:14px; margin:4px; }
 .btn-vid { background:#e3f2fd; border:1px solid #bbdefb; border-radius:8px; padding:8px 14px; cursor:pointer; font-size:14px; margin:4px; }

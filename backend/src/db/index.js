@@ -26,6 +26,7 @@ export function getDb() {
     const dictCols = db.prepare("PRAGMA table_info(word_dict)").all().map(c => c.name);
     if (!dictCols.includes('example_en')) db.exec("ALTER TABLE word_dict ADD COLUMN example_en TEXT");
     if (!dictCols.includes('example_cn')) db.exec("ALTER TABLE word_dict ADD COLUMN example_cn TEXT");
+    if (!dictCols.includes('mnemonic')) db.exec("ALTER TABLE word_dict ADD COLUMN mnemonic TEXT");
 
     console.log('✅ 数据库已连接:', DB_PATH);
   }
@@ -535,7 +536,7 @@ export const petOps = {
     const db = getDb();
     return db.prepare(`
       SELECT w.id AS canonical_id, w.word, w.phonetic, w.meaning, w.pos, w.is_covered,
-             w.example_en, w.example_cn,
+             w.example_en, w.example_cn, w.mnemonic,
              p.status, p.flip_count, u.sort_order
       FROM pet_unit_words u JOIN word_dict w ON w.id=u.canonical_id
       LEFT JOIN pet_progress p ON p.canonical_id=u.canonical_id AND p.user_id=?
@@ -568,7 +569,7 @@ export const petOps = {
     const db = getDb();
     return db.prepare(`
       SELECT w.id AS canonical_id, w.word, w.phonetic, w.meaning, w.pos, w.is_covered,
-             w.example_en, w.example_cn,
+             w.example_en, w.example_cn, w.mnemonic,
              p.status, p.flip_count, u.group_unit
       FROM pet_progress p
       JOIN word_dict w ON w.id=p.canonical_id
@@ -582,7 +583,7 @@ export const petOps = {
     const db = getDb();
     return db.prepare(`
       SELECT t.canonical_id, t.word, t.phonetic, t.meaning, t.pos, t.wrong_count, t.first_wrong_at,
-             w.is_covered, w.example_en, w.example_cn, u.group_unit
+             w.is_covered, w.example_en, w.example_cn, w.mnemonic, u.group_unit
       FROM pet_troublesome t
       LEFT JOIN word_dict w ON w.id=t.canonical_id
       LEFT JOIN pet_unit_words u ON u.canonical_id=t.canonical_id

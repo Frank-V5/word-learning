@@ -95,7 +95,8 @@ CREATE TABLE IF NOT EXISTS word_dict (
     is_pet      INTEGER DEFAULT 0,     -- 是否 PET 词
     is_covered  INTEGER DEFAULT 0,     -- PET 词且有 小学/初中/高中 视频覆盖
     example_en  TEXT,                  -- 例句英文 (GLM 生成, CEFR A2-B1)
-    example_cn  TEXT                   -- 例句中文翻译
+    example_cn  TEXT,                  -- 例句中文翻译
+    mnemonic    TEXT                   -- 联想记法 (词根优先, GLM 生成)
 );
 CREATE INDEX IF NOT EXISTS idx_word_dict_pet ON word_dict(is_pet);
 

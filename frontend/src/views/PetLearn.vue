@@ -22,6 +22,7 @@
         <div class="face back">
           <span class="cov-tag" v-if="w.is_covered">📺已覆盖</span>
           <div class="meaning"><span class="pos" v-if="w.pos">{{ w.pos }}</span>{{ w.meaning }}</div>
+          <div class="mnemonic" v-if="w.mnemonic" @click.stop>🔠 {{ w.mnemonic }}</div>
           <div class="acts" @click.stop>
             <button class="btn-spk" @click="speak(w.word)">🔊</button>
             <button v-if="w.is_covered" class="btn-vid" @click="openVideo(w)">📺 看视频</button>
@@ -103,7 +104,7 @@ export default {
 .stat { color: #666; font-size: 13px; }
 /* 卡片放大、防误点 */
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
-.pcard { background: #fff; border: 2px solid #eee; border-radius: 14px; padding: 22px 18px; min-height: 168px;
+.pcard { background: #fff; border: 2px solid #eee; border-radius: 14px; padding: 22px 18px; min-height: 196px;
   cursor: pointer; position: relative; transition: border-color .15s; }
 .pcard.stknown { border-color: #66bb6a; background: #f1f8f1; }
 .pcard.stunknown { border-color: #ef5350; background: #fdecea; }
@@ -114,6 +115,8 @@ export default {
 .word { font-size: 26px; font-weight: 700; margin: 14px 0 6px; }
 .ph { color: #777; font-size: 16px; font-family: monospace; margin-bottom: 14px; }
 .meaning { font-size: 17px; line-height: 1.5; margin: 10px 4px; }
+.mnemonic { font-size: 13px; line-height: 1.45; margin: 6px 4px; padding: 7px 10px;
+  background: #e8f5e9; border-left: 3px solid #43a047; border-radius: 6px; color: #2e7d32; text-align: left; }
 .pos { color: #1565c0; margin-right: 5px; font-size: 13px; }
 .btn-spk, .btn-vid { background: #f0f4f8; border: 1px solid #dde; border-radius: 8px; padding: 9px 16px;
   cursor: pointer; font-size: 15px; margin: 4px; }
