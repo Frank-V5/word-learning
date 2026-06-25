@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { getDb, closeDb, userOps, videoOps, wordOps, progressOps, troublesomeOps, flagOps, petOps, generateUserCode, generateId } from './db/index.js';
+import { getDb, closeDb, userOps, videoOps, wordOps, progressOps, troublesomeOps, flagOps, petOps, grammarOps, generateUserCode, generateId } from './db/index.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -489,6 +489,88 @@ app.get('/api/pet/pet-words', (req, res) => {
     console.error('获取 PET 词集失败:', error);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// ============ 语法训练模块 (完全隔离) ============
+app.get('/api/grammar/categories', (req, res) => {
+  try { res.json({ success: true, data: grammarOps.getCategories(req.query.userId) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.get('/api/grammar/category/:cat', (req, res) => {
+  try { res.json({ success: true, data: grammarOps.getCategoryPoints(req.params.cat, req.query.userId) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.get('/api/grammar/point/:id', (req, res) => {
+  try { const p = grammarOps.getPoint(req.params.id); if (!p) return res.status(404).json({ success: false, error: '考点不存在' }); res.json({ success: true, data: p }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.post('/api/grammar/progress', (req, res) => {
+  try { const { userId, pointId, status } = req.body; const r = grammarOps.upsertProgress(userId, pointId, status); if (!r) return res.status(400).json({ success: false, error: '参数无效' }); res.json({ success: true, data: r }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.get('/api/grammar/troublesome', (req, res) => {
+  try { res.json({ success: true, data: grammarOps.getTroublesome(req.query.userId) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+// Phase 2: 训练
+app.get('/api/grammar/practice/:pointId', (req, res) => {
+  try { res.json({ success: true, data: grammarOps.getPractice(req.params.pointId) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.post('/api/grammar/answer', (req, res) => {
+  try {
+    const { userId, questionId, userAnswer } = req.body;
+    const r = grammarOps.submitAnswer(userId, questionId, userAnswer);
+    if (!r) return res.status(404).json({ success: false, error: '题目不存在' });
+    res.json({ success: true, data: r });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.get('/api/grammar/wrong', (req, res) => {
+  try { res.json({ success: true, data: grammarOps.getWrong(req.query.userId) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.post('/api/grammar/redo', (req, res) => {
+  try {
+    const { userId, questionId, userAnswer } = req.body;
+    const r = grammarOps.redoWrong(userId, questionId, userAnswer);
+    if (!r) return res.status(404).json({ success: false, error: '题目不存在' });
+    res.json({ success: true, data: r });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+// Phase 3
+app.get('/api/grammar/mixed', (req, res) => {
+  try { res.json({ success: true, data: grammarOps.getMixedPractice(parseInt(req.query.count) || 10) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.get('/api/grammar/diagnosis', (req, res) => {
+  try { res.json({ success: true, data: grammarOps.getDiagnosis(req.query.userId) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+// 不规则动词翻卡
+app.get('/api/grammar/verbs', (req, res) => {
+  try { res.json({ success: true, data: grammarOps.getVerbCards(req.query.tier, req.query.userId) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.post('/api/grammar/verb-progress', (req, res) => {
+  try { const { userId, cardId, status } = req.body; res.json({ success: true, data: grammarOps.upsertVerbProgress(userId, cardId, status) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.get('/api/grammar/verb-troublesome', (req, res) => {
+  try { res.json({ success: true, data: grammarOps.getVerbTroublesome(req.query.userId) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+// 固定搭配翻卡
+app.get('/api/grammar/phrases', (req, res) => {
+  try { res.json({ success: true, data: grammarOps.getPhraseCards(req.query.grp, req.query.userId) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.post('/api/grammar/phrase-progress', (req, res) => {
+  try { const { userId, cardId, status } = req.body; res.json({ success: true, data: grammarOps.upsertPhraseProgress(userId, cardId, status) }); }
+  catch (e) { res.status(500).json({ success: false, error: error.message }); }
+});
+app.get('/api/grammar/phrase-troublesome', (req, res) => {
+  try { res.json({ success: true, data: grammarOps.getPhraseTroublesome(req.query.userId) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ============ 健康检查 ============

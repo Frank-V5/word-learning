@@ -130,3 +130,48 @@ CREATE TABLE IF NOT EXISTS pet_troublesome (
     first_wrong_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, canonical_id)
 );
+
+-- ============ 语法训练模块 (完全隔离, 不影响单词/PET 系统) ============
+CREATE TABLE IF NOT EXISTS grammar_points (        -- 50 考点知识卡
+    id         TEXT PRIMARY KEY,
+    category   TEXT,
+    name       TEXT,
+    rule       TEXT,
+    formula    TEXT,
+    examples   TEXT,    -- JSON [{en,cn}]
+    pitfalls   TEXT,    -- JSON [str]
+    sort_order INTEGER
+);
+CREATE TABLE IF NOT EXISTS grammar_questions (     -- 题库 (Phase 2)
+    id          TEXT PRIMARY KEY,
+    point_id    TEXT,
+    stem        TEXT,
+    options     TEXT,   -- JSON [4]
+    answer      TEXT,
+    why         TEXT,
+    point_note  TEXT,
+    distractors TEXT,
+    sort_order  INTEGER
+);
+CREATE TABLE IF NOT EXISTS grammar_progress (      -- 考点学习状态 (懂/没懂)
+    user_id    TEXT,
+    point_id   TEXT,
+    status     TEXT DEFAULT 'new',   -- new / known / unknown
+    learned_at DATETIME,
+    PRIMARY KEY (user_id, point_id)
+);
+CREATE TABLE IF NOT EXISTS grammar_wrong (         -- 错题本 (动态, Phase 2)
+    user_id     TEXT,
+    question_id TEXT,
+    point_id    TEXT,
+    added_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, question_id)
+);
+CREATE TABLE IF NOT EXISTS grammar_troublesome (   -- 语法易错本 (没懂的考点累积)
+    user_id        TEXT,
+    point_id       TEXT,
+    wrong_count    INTEGER DEFAULT 1,
+    first_wrong_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, point_id)
+);
+

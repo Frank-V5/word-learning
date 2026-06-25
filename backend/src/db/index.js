@@ -606,3 +606,165 @@ export const petOps = {
                    videoTitle: row.video_title, category: row.category, videoUrl: row.video_url } : null;
   }
 };
+
+// JSON 安全解析
+function safeJson(s, def) { try { return JSON.parse(s); } catch { return def; } }
+
+// 语法训练模块 (完全隔离, 不影响单词/PET 系统)
+export const grammarOps = {
+  getCategories(userId) {
+    const db = getDb();
+    return db.prepare(`
+      SELECT p.category, COUNT(*) AS total,
+        SUM(CASE WHEN pr.status='known' THEN 1 ELSE 0 END) AS known,
+        SUM(CASE WHEN pr.status='unknown' THEN 1 ELSE 0 END) AS unknown
+      FROM grammar_points p
+      LEFT JOIN grammar_progress pr ON pr.point_id=p.id AND pr.user_id=?
+      GROUP BY p.category ORDER BY MIN(p.sort_order)
+    `).all(userId);
+  },
+  getCategoryPoints(cat, userId) {
+    const db = getDb();
+    return db.prepare(`
+      SELECT p.id, p.name, p.category, pr.status,
+        (SELECT COUNT(*) FROM grammar_troublesome t WHERE t.user_id=? AND t.point_id=p.id) AS wrong
+      FROM grammar_points p
+      LEFT JOIN grammar_progress pr ON pr.point_id=p.id AND pr.user_id=?
+      WHERE p.category=? ORDER BY p.sort_order
+    `).all(userId, userId, cat);
+  },
+  getPoint(id) {
+    const db = getDb();
+    const r = db.prepare('SELECT * FROM grammar_points WHERE id=?').get(id);
+    if (!r) return null;
+    return { ...r, examples: safeJson(r.examples, []), pitfalls: safeJson(r.pitfalls, []) };
+  },
+  upsertProgress(userId, pointId, status) {
+    const db = getDb();
+    if (!['known', 'unknown'].includes(status)) return null;
+    db.prepare(`INSERT INTO grammar_progress (user_id,point_id,status,learned_at) VALUES (?,?,?,CURRENT_TIMESTAMP)
+      ON CONFLICT(user_id,point_id) DO UPDATE SET status=excluded.status, learned_at=CURRENT_TIMESTAMP`).run(userId, pointId, status);
+    if (status === 'unknown') {
+      db.prepare(`INSERT INTO grammar_troublesome (user_id,point_id,wrong_count) VALUES (?,?,1)
+        ON CONFLICT(user_id,point_id) DO UPDATE SET wrong_count=grammar_troublesome.wrong_count+1`).run(userId, pointId);
+    }
+    return { status };
+  },
+  getTroublesome(userId) {
+    const db = getDb();
+    return db.prepare(`
+      SELECT t.point_id, t.wrong_count, t.first_wrong_at, p.name, p.category
+      FROM grammar_troublesome t JOIN grammar_points p ON p.id=t.point_id
+      WHERE t.user_id=? ORDER BY t.wrong_count DESC, t.first_wrong_at DESC
+    `).all(userId);
+  },
+  // Phase 2: 训练
+  getPractice(pointId) {
+    const db = getDb();
+    const rows = db.prepare('SELECT * FROM grammar_questions WHERE point_id=? ORDER BY RANDOM()').all(pointId);
+    return rows.map(r => ({ ...r, options: safeJson(r.options, []) }));
+  },
+  submitAnswer(userId, questionId, userAnswer) {
+    const db = getDb();
+    const q = db.prepare('SELECT * FROM grammar_questions WHERE id=?').get(questionId);
+    if (!q) return null;
+    const correct = userAnswer === q.answer;
+    if (!correct) {
+      db.prepare('INSERT OR IGNORE INTO grammar_wrong (user_id, question_id, point_id) VALUES (?,?,?)').run(userId, questionId, q.point_id);
+      db.prepare(`INSERT INTO grammar_troublesome (user_id, point_id, wrong_count) VALUES (?,?,1)
+        ON CONFLICT(user_id, point_id) DO UPDATE SET wrong_count=grammar_troublesome.wrong_count+1`).run(userId, q.point_id);
+    }
+    return { correct, correctAnswer: q.answer, options: safeJson(q.options, []),
+             why: q.why, point_note: q.point_note, distractors: q.distractors };
+  },
+  getWrong(userId) {
+    const db = getDb();
+    const rows = db.prepare(`
+      SELECT q.*, p.name AS point_name, p.category FROM grammar_wrong w
+      JOIN grammar_questions q ON q.id=w.question_id
+      JOIN grammar_points p ON p.id=q.point_id
+      WHERE w.user_id=? ORDER BY w.added_at DESC
+    `).all(userId);
+    return rows.map(r => ({ ...r, options: safeJson(r.options, []) }));
+  },
+  redoWrong(userId, questionId, userAnswer) {
+    const db = getDb();
+    const q = db.prepare('SELECT * FROM grammar_questions WHERE id=?').get(questionId);
+    if (!q) return null;
+    const correct = userAnswer === q.answer;
+    if (correct) {
+      db.prepare('DELETE FROM grammar_wrong WHERE user_id=? AND question_id=?').run(userId, questionId);
+    }
+    return { correct, correctAnswer: q.answer, options: safeJson(q.options, []),
+             why: q.why, point_note: q.point_note, distractors: q.distractors };
+  },
+  // Phase 3: 随机混合练习(跨考点抽题)
+  getMixedPractice(count = 10) {
+    const db = getDb();
+    const rows = db.prepare('SELECT * FROM grammar_questions ORDER BY RANDOM() LIMIT ?').all(count);
+    return rows.map(r => ({ ...r, options: safeJson(r.options, []) }));
+  },
+  // Phase 3: 弱项诊断(按错次排序)
+  getDiagnosis(userId) {
+    const db = getDb();
+    return db.prepare(`
+      SELECT t.point_id, t.wrong_count, p.name, p.category
+      FROM grammar_troublesome t
+      JOIN grammar_points p ON p.id = t.point_id
+      WHERE t.user_id = ?
+      ORDER BY t.wrong_count DESC
+    `).all(userId);
+  },
+  // ── 不规则动词翻卡 ──
+  getVerbCards(tier, userId) {
+    const db = getDb();
+    const rows = tier ? db.prepare('SELECT * FROM verb_cards WHERE tier=? ORDER BY sort_order').all(tier)
+                      : db.prepare('SELECT * FROM verb_cards ORDER BY sort_order').all();
+    if (!userId) return rows;
+    const wrong = db.prepare('SELECT card_id, wrong_count FROM verb_troublesome WHERE user_id=?').all(userId);
+    const wmap = {}; wrong.forEach(w => { wmap[w.card_id] = w.wrong_count; });
+    return rows.map(r => ({ ...r, wrong_count: wmap[r.id] || 0 }));
+  },
+  upsertVerbProgress(userId, cardId, status) {
+    const db = getDb();
+    if (status === 'unknown') {
+      db.prepare(`INSERT INTO verb_troublesome (user_id, card_id, wrong_count) VALUES (?,?,1)
+        ON CONFLICT(user_id, card_id) DO UPDATE SET wrong_count=verb_troublesome.wrong_count+1`).run(userId, cardId);
+    }
+    return { status };
+  },
+  getVerbTroublesome(userId) {
+    const db = getDb();
+    return db.prepare(`
+      SELECT t.card_id, t.wrong_count, v.base, v.past, v.participle, v.meaning_zh, v.tier
+      FROM verb_troublesome t JOIN verb_cards v ON v.id=t.card_id
+      WHERE t.user_id=? ORDER BY t.wrong_count DESC, t.first_wrong_at DESC
+    `).all(userId);
+  },
+  // ── 固定搭配翻卡 ──
+  getPhraseCards(grp, userId) {
+    const db = getDb();
+    const rows = grp && grp !== 'all' ? db.prepare('SELECT * FROM phrase_cards WHERE grp=? ORDER BY sort_order').all(grp)
+                                      : db.prepare('SELECT * FROM phrase_cards ORDER BY sort_order').all();
+    if (!userId) return rows;
+    const wrong = db.prepare('SELECT card_id, wrong_count FROM phrase_troublesome WHERE user_id=?').all(userId);
+    const wmap = {}; wrong.forEach(w => { wmap[w.card_id] = w.wrong_count; });
+    return rows.map(r => ({ ...r, wrong_count: wmap[r.id] || 0 }));
+  },
+  upsertPhraseProgress(userId, cardId, status) {
+    const db = getDb();
+    if (status === 'unknown') {
+      db.prepare(`INSERT INTO phrase_troublesome (user_id, card_id, wrong_count) VALUES (?,?,1)
+        ON CONFLICT(user_id, card_id) DO UPDATE SET wrong_count=phrase_troublesome.wrong_count+1`).run(userId, cardId);
+    }
+    return { status };
+  },
+  getPhraseTroublesome(userId) {
+    const db = getDb();
+    return db.prepare(`
+      SELECT t.card_id, t.wrong_count, p.phrase, p.meaning_zh, p.note, p.grp
+      FROM phrase_troublesome t JOIN phrase_cards p ON p.id=t.card_id
+      WHERE t.user_id=? ORDER BY t.wrong_count DESC, t.first_wrong_at DESC
+    `).all(userId);
+  }
+};
