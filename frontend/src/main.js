@@ -24,7 +24,8 @@ const routes = [
   { path: '/grammar/verbs', name: 'VerbCards', component: () => import('./views/VerbCards.vue') },
   { path: '/grammar/phrases', name: 'PhraseCards', component: () => import('./views/PhraseCards.vue') },
   { path: '/grammar/verb-troublesome', name: 'VerbTroublesome', component: () => import('./views/VerbTroublesome.vue') },
-  { path: '/grammar/phrase-troublesome', name: 'PhraseTroublesome', component: () => import('./views/PhraseTroublesome.vue') }
+  { path: '/grammar/phrase-troublesome', name: 'PhraseTroublesome', component: () => import('./views/PhraseTroublesome.vue') },
+  { path: '/summer', name: 'Summer', component: () => import('./views/Summer.vue') }
 ]
 
 const router = createRouter({

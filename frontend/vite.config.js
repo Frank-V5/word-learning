@@ -7,11 +7,11 @@ export default defineConfig({
     port: 3200,
     proxy: {
       '/api': {
-        target: 'http://localhost:3100',
+        target: process.env.VITE_API_TARGET || 'http://localhost:3100',
         changeOrigin: true
       },
       '/videos': {
-        target: 'http://localhost:3100',
+        target: process.env.VITE_API_TARGET || 'http://localhost:3100',
         changeOrigin: true
       }
     }

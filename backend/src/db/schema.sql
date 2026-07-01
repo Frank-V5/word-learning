@@ -210,3 +210,21 @@ CREATE TABLE IF NOT EXISTS phrase_troublesome (    -- 搭配易错本 (永久累
     PRIMARY KEY (user_id, card_id)
 );
 
+-- ============ 暑假任务计划 (完全隔离, 不影响单词/PET/语法) ============
+CREATE TABLE IF NOT EXISTS summer_tasks (
+    id            TEXT PRIMARY KEY,
+    user_id       TEXT NOT NULL,
+    date          TEXT NOT NULL,            -- 'YYYY-MM-DD' (本地日期, 由前端传入)
+    category      TEXT,                     -- 学习/运动/家务/阅读
+    name          TEXT NOT NULL,            -- 任务名
+    standard      TEXT,                     -- 完成标准 (一句话客观标准)
+    sort_order    INTEGER DEFAULT 0,
+    -- 孩子自评打卡
+    child_checked INTEGER DEFAULT 0,        -- 0/1
+    child_at      DATETIME,
+    -- 家长审核
+    parent_status TEXT,                     -- 'approved' / NULL(未确认)
+    parent_at     DATETIME
+);
+CREATE INDEX IF NOT EXISTS idx_summer_user_date ON summer_tasks(user_id, date);
+

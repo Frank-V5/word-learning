@@ -1,9 +1,15 @@
 import express from 'express';
 import cors from 'cors';
-import { getDb, closeDb, userOps, videoOps, wordOps, progressOps, troublesomeOps, flagOps, petOps, grammarOps, generateUserCode, generateId } from './db/index.js';
+import { getDb, closeDb, userOps, videoOps, wordOps, progressOps, troublesomeOps, flagOps, petOps, grammarOps, summerOps, generateUserCode, generateId } from './db/index.js';
 
 const app = express();
 const PORT = process.env.PORT || 3100;
+
+// 本地日期 'YYYY-MM-DD' (summer 默认日期兜底; 前端一般显式传 date)
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 // 中间件
 app.use(cors());
@@ -571,6 +577,53 @@ app.post('/api/grammar/phrase-progress', (req, res) => {
 app.get('/api/grammar/phrase-troublesome', (req, res) => {
   try { res.json({ success: true, data: grammarOps.getPhraseTroublesome(req.query.userId) }); }
   catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ============ 暑假任务计划 (完全隔离) ============
+app.get('/api/summer/day', (req, res) => {
+  try {
+    const { userId, date } = req.query;
+    if (!userId) return res.status(400).json({ success: false, error: '缺少 userId' });
+    res.json({ success: true, data: summerOps.getDay(userId, date || todayStr()) });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.put('/api/summer/day', (req, res) => {
+  try {
+    const { userId, date, tasks } = req.body || {};
+    if (!userId || !date) return res.status(400).json({ success: false, error: '缺少 userId/date' });
+    res.json({ success: true, data: summerOps.saveDay(userId, date, tasks || []) });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.post('/api/summer/checkin', (req, res) => {
+  try {
+    const { userId, taskId, checked } = req.body || {};
+    const r = summerOps.checkin(userId, taskId, checked);
+    if (!r) return res.status(404).json({ success: false, error: '任务不存在' });
+    res.json({ success: true, data: r });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.post('/api/summer/confirm', (req, res) => {
+  try {
+    const { userId, taskId, action } = req.body || {};
+    const r = summerOps.confirm(userId, taskId, action);
+    if (!r) return res.status(404).json({ success: false, error: '任务不存在' });
+    res.json({ success: true, data: r });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.get('/api/summer/week', (req, res) => {
+  try {
+    const { userId, date } = req.query;
+    if (!userId) return res.status(400).json({ success: false, error: '缺少 userId' });
+    res.json({ success: true, data: summerOps.getWeek(userId, date || todayStr()) });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+app.get('/api/summer/month', (req, res) => {
+  try {
+    const { userId, y, m } = req.query;
+    if (!userId) return res.status(400).json({ success: false, error: '缺少 userId' });
+    const now = new Date();
+    res.json({ success: true, data: summerOps.getMonth(userId, parseInt(y) || now.getFullYear(), parseInt(m) || (now.getMonth() + 1)) });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ============ 健康检查 ============

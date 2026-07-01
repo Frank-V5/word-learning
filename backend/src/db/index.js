@@ -5,8 +5,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// 数据库文件路径
-const DB_PATH = join(__dirname, '../../data/wordlearning.db');
+// 数据库文件路径 (预览/测试可用 DB_PATH 环境变量指向副本, 不污染生产库)
+const DB_PATH = process.env.DB_PATH || join(__dirname, '../../data/wordlearning.db');
 const SCHEMA_PATH = join(__dirname, 'schema.sql');
 
 // 创建数据库连接
@@ -768,3 +768,104 @@ export const grammarOps = {
     `).all(userId);
   }
 };
+
+// ============ 暑假任务计划 ============
+export const summerOps = {
+  // 某天任务 (默认今天)
+  getDay(userId, date) {
+    const db = getDb();
+    return db.prepare('SELECT * FROM summer_tasks WHERE user_id=? AND date=? ORDER BY sort_order, rowid')
+      .all(userId, date);
+  },
+  getTask(id) {
+    return getDb().prepare('SELECT * FROM summer_tasks WHERE id=?').get(id);
+  },
+  // 保存一整天的任务列表 (增/改/删, 保留已有打卡与审核进度)
+  saveDay(userId, date, tasks) {
+    const db = getDb();
+    const tx = db.transaction((list) => {
+      const existingIds = db.prepare('SELECT id FROM summer_tasks WHERE user_id=? AND date=?')
+        .all(userId, date).map(r => r.id);
+      const incoming = new Set();
+      for (const t of (list || [])) {
+        const id = t.id || generateId('st_');
+        incoming.add(id);
+        if (existingIds.includes(id)) {
+          // 已存在: 只改任务定义, 不动 child/parent 进度
+          db.prepare('UPDATE summer_tasks SET category=?, name=?, standard=?, sort_order=? WHERE id=?')
+            .run(t.category || null, t.name, t.standard || null, t.sort_order || 0, id);
+        } else {
+          db.prepare(`INSERT INTO summer_tasks (id,user_id,date,category,name,standard,sort_order)
+            VALUES (?,?,?,?,?,?,?)`)
+            .run(id, userId, date, t.category || null, t.name, t.standard || null, t.sort_order || 0);
+        }
+      }
+      for (const oldId of existingIds) if (!incoming.has(oldId)) db.prepare('DELETE FROM summer_tasks WHERE id=?').run(oldId);
+    });
+    tx(tasks);
+    return this.getDay(userId, date);
+  },
+  // 孩子打卡 / 撤销打卡
+  checkin(userId, taskId, checked) {
+    const db = getDb();
+    const t = db.prepare('SELECT 1 FROM summer_tasks WHERE id=? AND user_id=?').get(taskId, userId);
+    if (!t) return null;
+    if (checked) {
+      db.prepare('UPDATE summer_tasks SET child_checked=1, child_at=CURRENT_TIMESTAMP WHERE id=?').run(taskId);
+    } else {
+      // 撤销打卡: 同时清掉家长确认, 回到待打卡
+      db.prepare('UPDATE summer_tasks SET child_checked=0, child_at=NULL, parent_status=NULL, parent_at=NULL WHERE id=?').run(taskId);
+    }
+    return this.getTask(taskId);
+  },
+  // 家长审核: approve(通过) / reject(打回->回到孩子待打卡)
+  confirm(userId, taskId, action) {
+    const db = getDb();
+    const t = db.prepare('SELECT 1 FROM summer_tasks WHERE id=? AND user_id=?').get(taskId, userId);
+    if (!t) return null;
+    if (action === 'approve') {
+      db.prepare("UPDATE summer_tasks SET parent_status='approved', parent_at=CURRENT_TIMESTAMP WHERE id=?").run(taskId);
+    } else { // reject / 打回
+      db.prepare('UPDATE summer_tasks SET child_checked=0, child_at=NULL, parent_status=NULL, parent_at=NULL WHERE id=?').run(taskId);
+    }
+    return this.getTask(taskId);
+  },
+  // 本周 7 天概览 (周一为起点)
+  getWeek(userId, date) {
+    const db = getDb();
+    const start = mondayOf(date); // 'YYYY-MM-DD'
+    const days = [];
+    for (let i = 0; i < 7; i++) days.push(addDays(start, i));
+    const rows = db.prepare(`SELECT date, COUNT(*) AS total,
+        SUM(child_checked) AS checked,
+        SUM(CASE WHEN parent_status='approved' THEN 1 ELSE 0 END) AS approved
+      FROM summer_tasks WHERE user_id=? AND date BETWEEN ? AND ? GROUP BY date`).all(userId, days[0], days[6]);
+    const map = Object.fromEntries(rows.map(r => [r.date, r]));
+    return days.map(d => ({ date: d, total: map[d]?.total || 0, checked: map[d]?.checked || 0, approved: map[d]?.approved || 0 }));
+  },
+  // 本月概览 (按日聚合)
+  getMonth(userId, year, month) {
+    const db = getDb();
+    const m = String(month).padStart(2, '0');
+    const like = `${year}-${m}-%`;
+    const rows = db.prepare(`SELECT date, COUNT(*) AS total,
+        SUM(CASE WHEN parent_status='approved' THEN 1 ELSE 0 END) AS approved
+      FROM summer_tasks WHERE user_id=? AND date LIKE ? GROUP BY date`).all(userId, like);
+    return rows.map(r => ({ date: r.date, total: r.total, approved: r.approved }));
+  }
+};
+
+// ── 日期工具 (本地 'YYYY-MM-DD', 周一起始) ──
+function addDays(dateStr, n) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + n);
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getDate()).padStart(2, '0');
+  return `${dt.getFullYear()}-${mm}-${dd}`;
+}
+function mondayOf(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  const offset = (dt.getDay() + 6) % 7; // Mon=0..Sun=6
+  return addDays(dateStr, -offset);
+}
