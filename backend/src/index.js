@@ -566,7 +566,7 @@ app.get('/api/grammar/phrases', (req, res) => {
 });
 app.post('/api/grammar/phrase-progress', (req, res) => {
   try { const { userId, cardId, status } = req.body; res.json({ success: true, data: grammarOps.upsertPhraseProgress(userId, cardId, status) }); }
-  catch (e) { res.status(500).json({ success: false, error: error.message }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 app.get('/api/grammar/phrase-troublesome', (req, res) => {
   try { res.json({ success: true, data: grammarOps.getPhraseTroublesome(req.query.userId) }); }

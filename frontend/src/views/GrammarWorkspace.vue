@@ -58,7 +58,7 @@
             </div>
           </div>
         </div>
-        <div class="gw-total">📊 已学 <b>{{ totalKnown }}</b> / 50</div>
+        <div class="gw-total">📊 已学 <b>{{ totalKnown }}</b> / {{ totalPoints }}</div>
       </aside>
 
       <!-- 右侧内容 -->
@@ -146,7 +146,8 @@ export default {
     }
   },
   computed: {
-    totalKnown() { return this.categories.reduce((s, c) => s + (c.known || 0), 0) }
+    totalKnown() { return this.categories.reduce((s, c) => s + (c.known || 0), 0) },
+    totalPoints() { return this.categories.reduce((s, c) => s + (c.total || 0), 0) }
   },
   async mounted() {
     await this.loadTree()

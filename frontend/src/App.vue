@@ -13,6 +13,7 @@
           易错表 <span v-if="troublesomeCount > 0">({{ troublesomeCount }})</span>
         </button>
         <button class="btn btn-secondary btn-small" @click="goToPet">🎯 PET备考</button>
+        <button class="btn btn-secondary btn-small" @click="goToGrammar">🔤 语法</button>
         <button class="btn btn-link btn-small" @click="goToAdmin" title="管理后台">⚙️</button>
         <button class="btn btn-secondary btn-small" @click="logout" v-if="userId">退出</button>
       </nav>
@@ -62,6 +63,9 @@ export default {
     },
     goToPet() {
       this.$router.push({ name: 'PetUnits' })
+    },
+    goToGrammar() {
+      this.$router.push({ name: 'GrammarWorkspace' })
     },
     logout() {
       localStorage.removeItem('userId')

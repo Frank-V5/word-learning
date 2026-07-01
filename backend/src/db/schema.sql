@@ -175,3 +175,38 @@ CREATE TABLE IF NOT EXISTS grammar_troublesome (   -- 语法易错本 (没懂的
     PRIMARY KEY (user_id, point_id)
 );
 
+-- ── 不规则动词变形翻卡 (语法空间 /grammar/verbs) ──
+CREATE TABLE IF NOT EXISTS verb_cards (            -- 80 张动词卡 (3 tier 难度)
+    id          TEXT PRIMARY KEY,
+    base        TEXT,                              -- 原形
+    past        TEXT,                              -- 过去式
+    participle  TEXT,                              -- 过去分词
+    meaning_zh  TEXT,
+    tier        INTEGER,                           -- 1=红 高频易错 / 2=黄 / 3=绿
+    sort_order  INTEGER
+);
+CREATE TABLE IF NOT EXISTS verb_troublesome (      -- 动词易错本 (永久累积)
+    user_id        TEXT,
+    card_id        TEXT,
+    wrong_count    INTEGER DEFAULT 1,
+    first_wrong_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, card_id)
+);
+
+-- ── 固定搭配翻卡 (语法空间 /grammar/phrases) ──
+CREATE TABLE IF NOT EXISTS phrase_cards (          -- 102 张搭配卡 (按 grp 分组)
+    id          TEXT PRIMARY KEY,
+    phrase      TEXT,
+    meaning_zh  TEXT,
+    note        TEXT,
+    grp         TEXT,                              -- 分组
+    sort_order  INTEGER
+);
+CREATE TABLE IF NOT EXISTS phrase_troublesome (    -- 搭配易错本 (永久累积)
+    user_id        TEXT,
+    card_id        TEXT,
+    wrong_count    INTEGER DEFAULT 1,
+    first_wrong_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, card_id)
+);
+
