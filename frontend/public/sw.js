@@ -1,8 +1,9 @@
 // Service Worker for PWA
 const CACHE_NAME = 'word-learning-v1';
-// bump 到 v2：让老用户清掉旧的 static-v1 缓存，重新从网络拉新版前端
-const STATIC_CACHE = 'static-v2';
-const API_CACHE = 'api-v2';
+// bump 到 v3：发布新前端后，让所有用户清掉含旧 index.html 的 static-v2 缓存，重新拉新版
+// (教训：HTML 若走 cache-first，删掉旧资源文件会让老缓存 404 白屏 → 必须 HTML 网络优先)
+const STATIC_CACHE = 'static-v3';
+const API_CACHE = 'api-v3';
 
 // 需要缓存的静态资源
 const STATIC_ASSETS = [
@@ -70,7 +71,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 静态资源：缓存优先
+  // HTML 导航：网络优先（关键！保证每次拿到最新 index.html，
+  // 避免部署后旧缓存引用已删除的资源而白屏；离线时回退缓存）
+  if (request.mode === 'navigate' ||
+      (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'))) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          const clone = response.clone();
+          caches.open(STATIC_CACHE).then(c => c.put(request, clone));
+          return response;
+        })
+        .catch(() => caches.match(request).then(c => c || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // 静态资源（含 /assets/* 内容哈希文件名）：缓存优先（旧哈希永不变，安全）
   event.respondWith(
     caches.match(request)
       .then(cached => {
