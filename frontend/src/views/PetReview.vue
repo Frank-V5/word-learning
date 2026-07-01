@@ -93,6 +93,7 @@ export default {
   },
   async mounted() { await this.load() },
   methods: {
+    speak(t) { speakWord(t) },
     async load() { try { this.words = (await fetchPetReview(this.userId)).map(w => ({ ...w, flipped: false, showEx: false })) } catch(e){} finally { this.loading = false } },
     unitLabel(gu) { const m = (gu||'').match(/(covered|uncovered)_(\d+)/); if(!m) return gu; return m[1]==='covered' ? `📚 已覆盖·第${parseInt(m[2],10)}组` : `🎯 未覆盖·第${parseInt(m[2],10)}组` },
     unitShort(gu) { const m = (gu||'').match(/_(\d+)/); return m ? `第${parseInt(m[1],10)}组` : gu },
